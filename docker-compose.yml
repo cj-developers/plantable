@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  plantable:
+    image: test:latest
+    command: plantable run
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
+      update_config:
+        order: stop-first
+        parallelism: 1
+        failure_action: rollback
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik"
+        # http routers -> https
+        - "traefik.http.routers.web-plantable.entrypoints=web"
+        - "traefik.http.routers.web-plantable.rule=Host(`plantable.jongno.life`)"
+        - "traefik.http.routers.web-plantable.middlewares=http-to-https"
+        # https routers -> service
+        - "traefik.http.routers.websecure-plantable.entrypoints=websecure"
+        - "traefik.http.routers.websecure-plantable.rule=Host(`plantable.jongno.life`)"
+        - "traefik.http.routers.websecure-plantable.tls=true"
+        - "traefik.http.routers.websecure-plantable.tls.certresolver=le"
+        - "traefik.http.routers.websecure-plantable.service=plantable"
+        # service
+        - "traefik.http.services.plantable.loadbalancer.server.port=3000"
+    networks:
+      - traefik
+
+networks:
+  traefik:
+    external: true

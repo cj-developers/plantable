@@ -62,6 +62,65 @@ class AccountClient:
             response.raise_for_status()
             return await response.json()
 
+    async def users(self, **params):
+        # bases는 page_info (has_next_page, current_page)를 제공
+        METHOD = "GET"
+        URL = "/api/v2.1/admin/users"
+        ITEM = "data"
+
+        # 1st page
+        session = self.make_session(token=self.account_token)
+        response = await self.request(session=session, method=METHOD, url=URL, **params)
+        users = response[ITEM]
+
+        # all pages
+        pages = range(2, response["total_count"] + 1, 1)
+        coros = [
+            self.request(session=session, method=METHOD, url=URL, page=page, **params)
+            for page in pages
+        ]
+        responses = await asyncio.gather(*coros)
+        users += [user for response in responses for user in response[ITEM]]
+
+        # don't forget!
+        await session.close()
+
+        return users
+
+    async def admins(self, **params):
+        # bases는 page_info (has_next_page, current_page)를 제공
+        METHOD = "GET"
+        URL = "/api/v2.1/admin/admin-users"
+        ITEM = "admin_user_list"
+
+        # admins endpoint has no pagenation
+        session = self.make_session(token=self.account_token)
+        response = await self.request(session=session, method=METHOD, url=URL, **params)
+        admins = response[ITEM]
+
+        # don't forget!
+        await session.close()
+
+        return admins
+
+    async def search_users(self, query: str, **params):
+        # bases는 page_info (has_next_page, current_page)를 제공
+        METHOD = "GET"
+        URL = "/api/v2.1/admin/search-user"
+        ITEM = "user_list"
+
+        # admins endpoint has no pagenation
+        session = self.make_session(token=self.account_token)
+        response = await self.request(
+            session=session, method=METHOD, url=URL, query=query, **params
+        )
+        admins = response[ITEM]
+
+        # don't forget!
+        await session.close()
+
+        return admins
+
     async def bases(self, **params):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
@@ -85,27 +144,3 @@ class AccountClient:
         await session.close()
 
         return dtables
-
-    async def users(self, **params):
-        # bases는 page_info (has_next_page, current_page)를 제공
-        METHOD = "GET"
-        URL = "/api/v2.1/admin/users"
-
-        # 1st page
-        session = self.make_session(token=self.account_token)
-        response = await self.request(session=session, method=METHOD, url=URL, **params)
-        users = response["data"]
-
-        # all pages
-        pages = range(2, response["total_count"] + 1, 1)
-        coros = [
-            self.request(session=session, method=METHOD, url=URL, page=page, **params)
-            for page in pages
-        ]
-        responses = await asyncio.gather(*coros)
-        users += [user for response in responses for user in response["data"]]
-
-        # don't forget!
-        await session.close()
-
-        return users

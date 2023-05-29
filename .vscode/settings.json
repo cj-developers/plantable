@@ -12,5 +12,8 @@
         "--verbose"
     ],
     "autoDocstring.generateDocstringOnEnter": true,
-    "autoDocstring.docstringFormat": "google"
+    "autoDocstring.docstringFormat": "google",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    }
 }

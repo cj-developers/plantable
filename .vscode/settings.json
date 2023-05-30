@@ -13,7 +13,4 @@
     ],
     "autoDocstring.generateDocstringOnEnter": true,
     "autoDocstring.docstringFormat": "google",
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
-    }
 }

@@ -23,6 +23,15 @@ class Dtable(BaseModel):
     file_size: str  # 10577
     rows_count: str  # 0
 
+    def view(self):
+        return {
+            "owner": self.owner,
+            "workspace_id": self.workspace_id,
+            "name": self.name,
+            "uuid": self.uuid,
+            "rows_count": self.rows_count,
+        }
+
 
 class User(BaseModel):
     email: str  # '2926d3fa3a364558bac8a550811dbe0e@auth.local'

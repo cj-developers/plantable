@@ -6,10 +6,15 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from .conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
+from .conf import (
+    SEATABLE_ACCOUNT_TOKEN,
+    SEATABLE_API_TOKEN,
+    SEATABLE_BASE_TOKEN,
+    SEATABLE_URL,
+)
 from .model.account import Admin, ApiToken, BaseToken, Dtable, User
 
-PAGE_INFO = "page_info"
+TABULATE_CONF = {"tablefmt": "psql", "headers": "keys"}
 
 
 ################################################################
@@ -46,7 +51,9 @@ class HttpClient:
     ):
         # Wrong content-type from
         print("HI")
-        async with session.request(method=method, url=url, json=json, data=data, params=params) as response:
+        async with session.request(
+            method=method, url=url, json=json, data=data, params=params
+        ) as response:
             response.raise_for_status()
             try:
                 if response.content_type in ["application/json"]:
@@ -84,14 +91,18 @@ class AccountClient(HttpClient):
     ################################################################
     # AUTHENTICATION
     ################################################################
-    async def list_api_tokens(self, workspace_id: str, base_name: str, model: BaseModel = ApiToken, **params):
+    async def list_api_tokens(
+        self, workspace_id: str, base_name: str, model: BaseModel = ApiToken, **params
+    ):
         # workpace id = group id
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/"
         ITEM = "api_tokens"
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
             results = response[ITEM]
 
         if model:
@@ -114,7 +125,9 @@ class AccountClient(HttpClient):
         JSON = {"app_name": app_name, "permission": permission}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, json=JSON, **params)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON, **params
+            )
             results = model(**response) if model else response
 
         return results
@@ -131,7 +144,9 @@ class AccountClient(HttpClient):
         ITEM = "api_token"
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
             results = response[ITEM]
 
         return results
@@ -151,19 +166,25 @@ class AccountClient(HttpClient):
         JSON = {"permission": permission}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, json=JSON, **params)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON, **params
+            )
             results = model(**response) if model else response
 
         return results
 
-    async def delete_api_token(self, workspace_id: str, base_name: str, app_name: str, **params):
+    async def delete_api_token(
+        self, workspace_id: str, base_name: str, app_name: str, **params
+    ):
         # return example {"success": True}
         METHOD = "DELETE"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/{app_name}"
         ITEM = "success"
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
             results = response[ITEM]
 
         return results
@@ -175,29 +196,41 @@ class AccountClient(HttpClient):
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/access-token/"
 
         async with self.session_maker(token=self.account_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **params)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
             if model:
-                results = model(**results, workspace_id=workspace_id, base_name=base_name)
+                results = model(
+                    **results, workspace_id=workspace_id, base_name=base_name
+                )
 
         return results
 
-    async def get_base_token_with_api_token(self, api_token: str, model: BaseModel = BaseToken, **params):
+    async def get_base_token_with_api_token(
+        self, api_token: str, model: BaseModel = BaseToken, **params
+    ):
         METHOD = "GET"
         URL = "/api/v2.1/dtable/app-access-token/"
 
         async with self.session_maker(token=api_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **params)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
             if model:
                 results = model(**results)
 
         return results
 
-    async def get_base_token_with_invite_link(self, token: str, model: BaseModel = BaseToken, **params):
+    async def get_base_token_with_invite_link(
+        self, token: str, model: BaseModel = BaseToken, **params
+    ):
         METHOD = "GET"
         URL = "/api/v2.1/dtable/share-link-access-token/"
 
         async with self.session_maker(token=self.account_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, token=token, **params)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, token=token, **params
+            )
             if model:
                 results = model(**results)
 
@@ -210,7 +243,9 @@ class AccountClient(HttpClient):
         URL = f"/api/v2.1/external-link-tokens/{external_link_token}/access-token/"
 
         async with self.session_maker(token=None) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **params)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
             if model:
                 results = model(**results)
 
@@ -227,12 +262,19 @@ class AccountClient(HttpClient):
 
         # 1st page
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
             results = response[ITEM]
 
             # all pages
             pages = range(2, response["total_count"] + 1, 1)
-            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **params) for page in pages]
+            coros = [
+                self.request(
+                    session=session, method=METHOD, url=URL, page=page, **params
+                )
+                for page in pages
+            ]
             responses = await asyncio.gather(*coros)
             results += [user for response in responses for user in response[ITEM]]
 
@@ -249,7 +291,9 @@ class AccountClient(HttpClient):
 
         # admins endpoint has no pagenation
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
             results = response[ITEM]
 
         if model:
@@ -265,7 +309,9 @@ class AccountClient(HttpClient):
 
         # admins endpoint has no pagenation
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, query=query, **params)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, query=query, **params
+            )
         results = response[ITEM]
 
         # model
@@ -282,14 +328,18 @@ class AccountClient(HttpClient):
 
         # 1st page
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
             results = response[ITEM]
 
             # all pages
             while response["page_info"]["has_next_page"]:
                 page = response["page_info"]["current_page"] + 1
                 params.update({"page": page})
-                response = await self.request(session=session, method="GET", url=URL, **params)
+                response = await self.request(
+                    session=session, method="GET", url=URL, **params
+                )
                 results += [response[ITEM]]
 
         # model
@@ -297,6 +347,16 @@ class AccountClient(HttpClient):
             results = [model(**x) for x in results]
 
         return results
+
+    # [secondary]
+    async def ls(self):
+        bases = await self.list_bases()
+        bases = [b.view() for b in bases]
+        print(
+            tabulate(
+                sorted(bases, key=lambda x: int(x["workspace_id"])), **TABULATE_CONF
+            )
+        )
 
 
 ################################################################
@@ -335,11 +395,46 @@ class BaseClient(HttpClient):
         # base_uuid = dtable_uuid
         METHOD = "GET"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/metadata/"
+        ITEM = "metadata"
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL)
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response[ITEM]
 
         return results
+
+    # [secondary]
+    async def ls(self, table_name: str = None):
+        metadata = await self.get_metadata()
+        tables = metadata["tables"]
+        if table_name:
+            for table in tables:
+                if table["name"] == table_name:
+                    break
+            else:
+                raise KeyError()
+            columns = [
+                {"key": c["key"], "name": c["name"], "type": c["type"]}
+                for c in table["columns"]
+            ]
+            print(tabulate(columns, **TABULATE_CONF))
+            return
+        _tables = list()
+        for table in tables:
+            _n = len(table["columns"])
+            _columns = ", ".join(c["name"] for c in table["columns"])
+            if len(_columns) > 50:
+                _columns = _columns[:50] + "..."
+            _columns += f" ({_n})"
+            _tables += [
+                {
+                    "id": table["_id"],
+                    "name": table["name"],
+                    "views": ", ".join([v["name"] for v in table["views"]]),
+                    "columns": _columns,
+                },
+            ]
+        print(tabulate(_tables, **TABULATE_CONF))
 
     async def get_bigdata_status(self):
         raise NotImplementedError
@@ -362,7 +457,9 @@ class BaseClient(HttpClient):
         JSON = {"sql": sql, "convert_keys": convert_keys}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -397,7 +494,9 @@ class BaseClient(HttpClient):
         params = {k: v for k, v in params.items() if v is not None}
 
         async with self.session_maker(token=self.base_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
             response = response[ITEM]
             results = response
 
@@ -405,24 +504,37 @@ class BaseClient(HttpClient):
             if get_all_rows:
                 while len(response) == limit:
                     params.update({"start": params["start"] + 1})
-                    response = await self.request(session=session, method=METHOD, url=URL, **params)
+                    response = await self.request(
+                        session=session, method=METHOD, url=URL, **params
+                    )
                     response = response[ITEM]
                     results += response
 
         return results
 
     async def add_row(
-        self, table_name: str, row: dict, anchor_row_id: str = None, row_insert_position: str = "insert_below"
+        self,
+        table_name: str,
+        row: dict,
+        anchor_row_id: str = None,
+        row_insert_position: str = "insert_below",
     ):
         # insert_below or insert_above
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/rows/"
         JSON = {"table_name": table_name, "row": row}
         if anchor_row_id:
-            JSON.update({"ahchor_row_id": anchor_row_id, "row_insert_position": row_insert_position})
+            JSON.update(
+                {
+                    "ahchor_row_id": anchor_row_id,
+                    "row_insert_position": row_insert_position,
+                }
+            )
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -433,7 +545,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "row_id": row_id, "row": row}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -443,7 +557,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "row_id": row_id}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -455,7 +571,9 @@ class BaseClient(HttpClient):
         params = {"table_name": table_name, "convert": str(convert).lower()}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **params)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, **params
+            )
 
         return results
 
@@ -466,7 +584,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "rows": rows}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -477,7 +597,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "updates": updates}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -487,7 +609,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "row_ids": row_ids}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -497,7 +621,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "row_ids": row_ids}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -507,7 +633,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "row_ids": row_ids}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -522,7 +650,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "columns": columns}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -532,7 +662,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "new_table_name": new_table_name}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -542,7 +674,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 
@@ -553,7 +687,9 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "is_duplicate_records": is_duplicate_records}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
 
         return results
 

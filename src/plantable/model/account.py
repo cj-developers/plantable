@@ -82,3 +82,13 @@ class BaseToken(BaseModel):
     dtable_db: str = None  # 'https://seatable.jongno.life/dtable-db/'
     workspace_id: str = None  # 3
     dtable_name: str = None  # 'employee
+
+
+class Webhook(BaseModel):
+    id: int
+    dtable_uuid: str
+    url: str
+    creator: str
+    created_at: datetime
+    is_valid: bool
+    settings: dict

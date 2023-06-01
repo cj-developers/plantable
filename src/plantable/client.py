@@ -7,8 +7,7 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from .conf import (SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN,
-                   SEATABLE_BASE_TOKEN, SEATABLE_URL)
+from .conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
 from .model.account import Admin, ApiToken, BaseToken, Dtable, User, Webhook
 
 logger = logging.getLogger()
@@ -222,20 +221,23 @@ class AccountClient(HttpClient):
     ################################################################
     # ACCOUNT OPERATIONS: SYSTEM ADMIN
     ################################################################
-    async def list_users(self, model: BaseModel = User, **params):
+
+    # [USERS] list users
+    async def list_users(self, per_page: int = 25, model: BaseModel = User, **params):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
         URL = "/api/v2.1/admin/users"
         ITEM = "data"
+        PARAMS = {"per_page": per_page, **params}
 
         # 1st page
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
             results = response[ITEM]
 
             # all pages
-            pages = range(2, response["total_count"] + 1, 1)
-            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **params) for page in pages]
+            pages = range(2, response["total_count"] + 1, 25)
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [user for response in responses for user in response[ITEM]]
 
@@ -244,6 +246,7 @@ class AccountClient(HttpClient):
 
         return results
 
+    # [USERS] list admins
     async def list_admins(self, model: BaseModel = Admin, **params):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
@@ -260,6 +263,7 @@ class AccountClient(HttpClient):
 
         return results
 
+    # [USERS] search users
     async def search_users(self, query: str, model: BaseModel = User, **params):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
@@ -277,6 +281,7 @@ class AccountClient(HttpClient):
 
         return results
 
+    # [BASES] list bases
     async def list_bases(self, model=Dtable, **params):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
@@ -294,6 +299,30 @@ class AccountClient(HttpClient):
                 params.update({"page": page})
                 response = await self.request(session=session, method="GET", url=URL, **params)
                 results += [response[ITEM]]
+
+        # model
+        if model:
+            results = [model(**x) for x in results]
+
+        return results
+
+    # [BASES] list user's bases
+    async def list_user_bases(self, user_id: str, model: BaseModel = Dtable, **params):
+        # bases는 page_info (has_next_page, current_page)를 제공
+        METHOD = "GET"
+        URL = f"/api/v2.1/admin/users/{user_id}/dtables/"
+        ITEM = "dtable_list"
+
+        # 1st page
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            results = response[ITEM]
+
+            # all pages
+            pages = range(2, response["count"] + 1, 25)
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **params) for page in pages]
+            responses = await asyncio.gather(*coros)
+            results += [user for response in responses for user in response[ITEM]]
 
         # model
         if model:
@@ -343,7 +372,7 @@ class AccountClient(HttpClient):
     ):
         METHOD = "POST"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/webhooks/"
-        JSON = {"url": url, "secret": secret}
+        JSON = {"url": url, "secret": str(secret)}
         ITEM = "webhook"
 
         async with self.session_maker(token=self.account_token) as session:
@@ -356,10 +385,10 @@ class AccountClient(HttpClient):
         return results
 
     # [WEBHOOKS] update webhook
-    async def update_webhook(self, workspace_id: str, base_name: str, webhook_id: str, url: str, secret: int = 0):
+    async def update_webhook(self, workspace_id: str, base_name: str, webhook_id: str, url: str, secret: int = None):
         METHOD = "PUT"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/webhooks/{webhook_id}/"
-        JSON = {"url": url, "secret": secret}
+        JSON = {"url": url, "secret": str(secret)}
 
         async with self.session_maker(token=self.account_token) as session:
             response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
@@ -369,10 +398,13 @@ class AccountClient(HttpClient):
     async def delete_webhook(self, workspace_id: str, base_name: str, webhook_id: str):
         METHOD = "DELETE"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/webhooks/{webhook_id}/"
+        ITEM = "success"
 
         async with self.session_maker(token=self.account_token) as session:
             response = await self.request(session=session, method=METHOD, url=URL)
-            print(response)
+            results = response[ITEM]
+
+        return results
 
 
 ################################################################

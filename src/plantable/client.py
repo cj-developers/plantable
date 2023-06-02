@@ -232,7 +232,7 @@ class AccountClient(HttpClient):
         ITEM = "success"
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            response = await self.request(session=session, method=METHOD, url=URL)
             results = response[ITEM]
 
         return results
@@ -246,7 +246,7 @@ class AccountClient(HttpClient):
         URL = "/api/v2.1/dtable/app-access-token/"
 
         async with self.session_maker(token=api_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **params)
+            results = await self.request(session=session, method=METHOD, url=URL)
             if model:
                 results = model(**results)
 

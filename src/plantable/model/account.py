@@ -3,16 +3,16 @@ from typing import List
 from pydantic import BaseModel, validator
 from datetime import datetime
 
-
-class _Model(BaseModel):
-    @validator("*", pre=True)
-    def empty_to_none(cls, v):
-        if v == "":
-            return None
-        return v
+from .common import _Model
 
 
-class Dtable(_Model):
+class Base(_Model):
+    """
+    [NOTE]
+     base == dtable
+     Base == Dtable
+    """
+
     workspace_id: int  # 3
     uuid: str  # '166424ad-b023-47a0-9a35-76077f5b629b'
     name: str  # 'employee'
@@ -70,6 +70,23 @@ class Admin(_Model):
     create_time: datetime  # '2023-05-21T03:04:26+00:00'
     last_login: datetime  # '2023-05-28T11:42:01+00:00'
     admin_role: str  # 'default_admin'
+
+
+class Team(_Model):
+    org_id: str  # 1
+    org_name: str  # "Test-Admin"
+    ctime: datetime  # "2020-06-01T12:46:26+00:00"
+    org_url_prefix: str  # "org_8hz6uh"
+    role: str  # "org_default"
+    creator_email: str  # "8ca1997823b44dffbaa51e0dd0c35ac0@auth.local"
+    creator_name: str  # "Christoph Dyllick"
+    creator_contact_email: str  # "christoph@example.com"
+    quota: int  # -2
+    storage_usage: int  # 0
+    storage_quota: int  # 1000000000
+    max_user_number: int  # 25
+    rows_count: int  # 0
+    row_limit: int  # 200
 
 
 class ApiToken(_Model):

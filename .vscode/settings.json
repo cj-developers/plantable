@@ -1,6 +1,6 @@
 {
     "editor.formatOnSave": true,
-    "python.formatting.provider": "black",
+    "python.formatting.provider": "none",
     "python.formatting.blackArgs": [
         "--line-length",
         "119"
@@ -8,9 +8,12 @@
     "python.linting.enabled": true,
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [
-        "--ignore=E266,E302,E501,F401,F402,F541,F741,F841",
+        "--ignore=E266,E302,E501,F401,F402,F403,F541,F741,F841",
         "--verbose"
     ],
     "autoDocstring.generateDocstringOnEnter": true,
     "autoDocstring.docstringFormat": "google",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
 }

@@ -3,42 +3,28 @@ from typing import List
 from pydantic import BaseModel, validator
 from datetime import datetime
 
-from .common import _Model
+from .core import _Model
+
+__all__ = ["AccountInfo", "User", "UserInfo", "Admin", "Team", "ApiToken", "BaseToken", "Webhook"]
 
 
-class Base(_Model):
-    """
-    [NOTE]
-     base == dtable
-     Base == Dtable
-    """
-
-    workspace_id: int  # 3
-    uuid: str  # '166424ad-b023-47a0-9a35-76077f5b629b'
-    name: str  # 'employee'
-    created_at: datetime  # '2023-05-21T04:33:18+00:00'
-    updated_at: datetime  # '2023-05-21T04:33:30+00:00'
-    color: str = None  # None
-    text_color: str = None  # None
-    icon: str = None  # None
-    is_encrypted: bool  # False
-    in_storage: bool  # True
-    org_id: int = None  # -1
-    email: str = None  # '1@seafile_group'
-    group_id: int = None  # 1
-    owner: str = None  # 'Employee (group)'
-    owner_deleted: bool = False  # False
-    file_size: int = None  # 10577
-    rows_count: int  # 0
-
-    def view(self):
-        return {
-            "owner": self.owner,
-            "workspace_id": self.workspace_id,
-            "name": self.name,
-            "uuid": self.uuid,
-            "rows_count": self.rows_count,
-        }
+class AccountInfo(_Model):
+    space_usage: str  # '0%'
+    total: int  # -2
+    usage: int  # 0
+    row_usage_rate: str  # '0%'
+    row_total: int  # -1
+    row_usage: int  # 0
+    avatar_url: str  # 'https://seatable.jongno.life/media/avatars/default.png'
+    email: str  # '2926d3fa3a364558bac8a550811dbe0e@auth.local'
+    name: str  # 'admin'
+    login_id: str = None  # ''
+    contact_email: str  # 'woojin.cho@gmail.com'
+    institution: str = None  # ''
+    is_staff: bool  # True
+    enable_subscription: bool  # False
+    dtable_updates_email_interval: int  # 0
+    dtable_collaborate_email_interval: int  # 0
 
 
 class User(_Model):
@@ -56,6 +42,12 @@ class User(_Model):
     role: str  # 'default'
     storage_usage: int  # 0
     rows_count: str  # 0
+
+
+class UserInfo(_Model):
+    email: str
+    name: str
+    avatar_url: str = None
 
 
 class Admin(_Model):

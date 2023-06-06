@@ -1,11 +1,11 @@
 from typing import List
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, Field
 from datetime import datetime
 
 from .core import _Model
 
-__all__ = ["AccountInfo", "User", "UserInfo", "Admin", "Team", "ApiToken", "BaseToken", "Webhook"]
+__all__ = ["AccountInfo", "Admin", "Team", "ApiToken", "BaseToken", "Webhook"]
 
 
 class AccountInfo(_Model):
@@ -25,29 +25,6 @@ class AccountInfo(_Model):
     enable_subscription: bool  # False
     dtable_updates_email_interval: int  # 0
     dtable_collaborate_email_interval: int  # 0
-
-
-class User(_Model):
-    email: str  # '2926d3fa3a364558bac8a550811dbe0e@auth.local'
-    name: str  # 'admin'
-    contact_email: str  # 'woojin.cho@gmail.com'
-    unit: str = None  # ''
-    login_id: str = None  # ''
-    is_staff: bool  # True
-    is_active: bool  # True
-    id_in_org: str = None  # ''
-    workspace_id: int = None  # 1
-    create_time: datetime  # '2023-05-21T03:04:26+00:00'
-    last_login: datetime = None  # '2023-05-28T11:42:01+00:00'
-    role: str  # 'default'
-    storage_usage: int  # 0
-    rows_count: str  # 0
-
-
-class UserInfo(_Model):
-    email: str
-    name: str
-    avatar_url: str = None
 
 
 class Admin(_Model):
@@ -98,7 +75,7 @@ class BaseToken(_Model):
     dtable_socket: str  # 'https://seatable.jongno.life/'
     dtable_db: str = None  # 'https://seatable.jongno.life/dtable-db/'
     workspace_id: int = None  # 3
-    dtable_name: str = None  # 'employee
+    base_name: str = Field(None, alias="dtable_name")  # 'employee
 
 
 class Webhook(_Model):

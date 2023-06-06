@@ -73,3 +73,7 @@ class HttpClient:
                     return orjson.loads(body)
             except Exception as ex:
                 raise ex
+
+    @staticmethod
+    def print(records: List[dict], tabulate_conf: dict = TABULATE_CONF):
+        print(tabulate(records, **tabulate_conf))

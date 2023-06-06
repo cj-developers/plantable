@@ -22,6 +22,7 @@ from ...model import (
     User,
     Webhook,
 )
+from .account import AccountClient
 from ..base import BaseClient
 from ..core import TABULATE_CONF, HttpClient, parse_base
 
@@ -31,239 +32,7 @@ logger = logging.getLogger()
 ################################################################
 # AdminClient
 ################################################################
-class AdminClient(HttpClient):
-    def __init__(
-        self,
-        seatable_url: str = SEATABLE_URL,
-        account_token: str = SEATABLE_ACCOUNT_TOKEN,
-    ):
-        super().__init__(seatable_url=seatable_url)
-        self.account_token = account_token
-
-    async def login(self, username: str, password: str):
-        async with self.session_maker() as session:
-            response = await self.request(
-                session=session,
-                method="POST",
-                url="/api2/auth-token/",
-                json={"username": username, "password": password},
-            )
-        self.account_token = response["token"]
-
-    ################################################################
-    # AUTHENTICATION
-    ################################################################
-    # [API-TOKEN] list api tokens
-    async def list_api_tokens(
-        self,
-        *,
-        base: Base = None,
-        workspace_id: str = None,
-        base_name: str = None,
-        model: BaseModel = ApiToken,
-        **params,
-    ):
-        """
-        [NOTE]
-         workspace id : group = 1 : 1
-        """
-        if base:
-            workspace_id, base_name = parse_base(base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
-        METHOD = "GET"
-        URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/"
-        ITEM = "api_tokens"
-
-        async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
-            results = response[ITEM]
-
-        if model:
-            results = [model(**x) for x in results]
-
-        return results
-
-    # [API-TOKEN] create api token
-    async def create_api_token(
-        self,
-        app_name: str,
-        permission: str = "r",
-        *,
-        workspace_id: str = None,
-        base_name: str = None,
-        base: Base = None,
-        model: BaseModel = ApiToken,
-        **params,
-    ):
-        """
-        [NOTE]
-         "bad request" returns if app_name is already exists.
-        """
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
-        METHOD = "POST"
-        URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/"
-        JSON = {"app_name": app_name, "permission": permission}
-
-        async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, json=JSON, **params)
-            results = model(**response) if model else response
-
-        return results
-
-    # [API-TOKEN] create temporary api token
-    async def create_temp_api_token(
-        self,
-        *,
-        base: Base = None,
-        workspace_id: str = None,
-        base_name: str = None,
-        model: BaseModel = ApiToken,
-        **params,
-    ):
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
-        METHOD = "GET"
-        URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/temp-api-token/"
-        ITEM = "api_token"
-
-        async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **params)
-            results = response[ITEM]
-
-        if model:
-            now = datetime.now()
-            results = model(
-                app_name="__temp_token",
-                api_token=results,
-                generated_by="__temp_token",
-                generated_at=now,
-                last_access=now,
-                permission="r",
-            )
-
-        return results
-
-    # [API-TOKEN] update api token
-    async def update_api_token(
-        self,
-        app_name: str,
-        permission: str = "r",
-        *,
-        base: Base = None,
-        workspace_id: str = None,
-        base_name: str = None,
-        model: BaseModel = ApiToken,
-        **params,
-    ):
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
-        METHOD = "PUT"
-        URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/{app_name}"
-        JSON = {"permission": permission}
-
-        async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, json=JSON, **params)
-            results = model(**response) if model else response
-
-        return results
-
-    # [API-TOKEN] delete api token
-    async def delete_api_token(
-        self, app_name: str, *, base: Base = None, workspace_id: str = None, base_name: str = None
-    ):
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
-        METHOD = "DELETE"
-        URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/{app_name}"
-        ITEM = "success"
-
-        async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL)
-            results = response[ITEM]
-
-        return results
-
-    # [BASE-TOKEN] get base token with api token
-    # NOT WORKING YET
-    async def get_base_token_with_api_token(self, *, api_token: Union[ApiToken, str], model: BaseModel = BaseToken):
-        api_token = api_token.api_token if isinstance(api_token, ApiToken) else api_token
-
-        METHOD = "GET"
-        URL = "/api/v2.1/dtable/app-access-token/"
-
-        async with self.session_maker(token=api_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL)
-            if model:
-                results = model(**results)
-
-        return results
-
-    # [BASE-TOKEN] get base token with account token
-    async def get_base_token_with_account_token(
-        self,
-        *,
-        base: Base = None,
-        workspace_id: str = None,
-        base_name: str = None,
-        model: BaseModel = BaseToken,
-        **params,
-    ):
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
-        METHOD = "GET"
-        URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/access-token/"
-
-        async with self.session_maker(token=self.account_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **params)
-            if model:
-                results = model(**results, workspace_id=workspace_id, base_name=base_name)
-
-        return results
-
-    # [BASE-TOKEN] get base token with invite link
-    async def get_base_token_with_invite_link(self, token: str, model: BaseModel = BaseToken, **params):
-        METHOD = "GET"
-        URL = "/api/v2.1/dtable/share-link-access-token/"
-
-        async with self.session_maker(token=self.account_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, token=token, **params)
-            if model:
-                results = model(**results)
-
-        return results
-
-    # [BASE-TOKEN] get base token with external link
-    async def get_base_token_with_external_link(
-        self, external_link_token: str, model: BaseModel = BaseToken, **params
-    ):
-        METHOD = "GET"
-        URL = f"/api/v2.1/external-link-tokens/{external_link_token}/access-token/"
-
-        async with self.session_maker(token=None) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **params)
-            if model:
-                results = model(**results)
-
-        return results
-
+class AdminClient(AccountClient):
     ################################################################
     # SYSTEM ADMIN - USERS
     ################################################################
@@ -417,8 +186,8 @@ class AdminClient(HttpClient):
     # [BASES] (custom) ls
     async def ls(self):
         bases = await self.list_bases()
-        bases = [b.to_record() for b in bases]
-        print(tabulate(sorted(bases, key=lambda x: int(x["workspace_id"])), **TABULATE_CONF))
+        records = [b.to_record() for b in bases]
+        self.print(records=records)
 
     # [BASES] (custom) get base by group name
     async def get_base_by_name(self, group_name: int, base_name: str):
@@ -432,20 +201,6 @@ class AdminClient(HttpClient):
         else:
             msg = f"group_name '{group_name}', base_name '{base_name}' is not exists!"
             raise KeyError(msg)
-
-    # [BASES] (custom) get base client
-    async def get_base_client(self, *, base: Base = None, workspace_id: str = None, base_name: str = None):
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
-        base_token = await self.get_base_token_with_account_token(
-            base=base, workspace_id=workspace_id, base_name=base_name
-        )
-        client = BaseClient(base_token=base_token)
-
-        return client
 
     ################################################################
     # SYSTEM ADMIN - TEAMS

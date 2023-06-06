@@ -24,8 +24,10 @@ from ...model import (
     User,
     UserInfo,
     Webhook,
-    Favorite,
+    BaseInfo,
+    Workspace,
 )
+from .account import AccountClient
 from ..base import BaseClient
 from ..core import TABULATE_CONF, HttpClient, parse_base
 
@@ -35,27 +37,9 @@ logger = logging.getLogger()
 ################################################################
 # UserClient
 ################################################################
-class UserClient(HttpClient):
-    def __init__(
-        self,
-        seatable_url: str = SEATABLE_URL,
-        account_token: str = SEATABLE_ACCOUNT_TOKEN,
-    ):
-        super().__init__(seatable_url=seatable_url)
-        self.account_token = account_token
-
-    async def login(self, username: str, password: str):
-        async with self.session_maker() as session:
-            response = await self.request(
-                session=session,
-                method="POST",
-                url="/api2/auth-token/",
-                json={"username": username, "password": password},
-            )
-        self.account_token = response["token"]
-
+class UserClient(AccountClient):
     ################################################################
-    # USER ACCOUNT OPERATIONS - USER
+    # USER
     ################################################################
     # [USER] get account info
     async def get_account_info(self, model: BaseModel = AccountInfo):
@@ -108,9 +92,8 @@ class UserClient(HttpClient):
         return results
 
     ################################################################
-    # USER ACCOUNT OPERATION - USER
+    # BASE
     ################################################################
-
     # [BASES] Create Base
     async def create_base(
         self,
@@ -192,7 +175,7 @@ class UserClient(HttpClient):
         return results
 
     # [BASES] list_favorites
-    async def list_favorites(self, model: BaseModel = Favorite):
+    async def list_favorites(self, model: BaseModel = BaseInfo):
         METHOD = "GET"
         URL = "/api/v2.1/starred-dtables/"
         ITEM = "user_starred_dtable_list"
@@ -242,28 +225,25 @@ class UserClient(HttpClient):
             results = response
 
         if model:
-            if results["personal"]:
-                results["personal"] = [model(**x) for x in results["personal"]]
+            results["personal"] = [model(**x) for x in results["personal"]]
             for group in results["groups"]:
                 group["dtables"] = [model(**x) for x in group["dtables"]]
 
         return results
 
     # [BASES] (custom) get base by name
-    async def get_base(self, group_name: str, base_name: str):
+    async def get_base(self, workspace_name: str, base_name: str):
         results = await self.list_bases_user_can_admin()
 
-        # personal base
-        if group_name in ["personal"]:
+        # personal bases
+        if workspace_name == "personal":
             for base in results["personal"]:
                 if base.name == base_name:
                     return base
-            else:
-                raise KeyError()
 
-        # group base
+        # group bases
         for group in results["groups"]:
-            if group["group_name"] != group_name:
+            if group["workspace_name"] != workspace_name:
                 continue
             for base in group["dtables"]:
                 if base.name == base_name:
@@ -272,10 +252,10 @@ class UserClient(HttpClient):
             raise KeyError()
 
     ################################################################
-    # USER ACCOUNT OPERATION - GROUPS & WORKSPACES
+    # GROUPS & WORKSPACES
     ################################################################
     # [GROUPS & WORKSPACES] list workspaces
-    async def list_workspaces(self, detail: bool = True):
+    async def list_workspaces(self, detail: bool = True, incl: List[str] = None, model: BaseModel = Workspace) -> dict:
         METHOD = "GET"
         URL = "/api/v2.1/workspaces/"
         ITEM = "workspace_list"
@@ -285,10 +265,274 @@ class UserClient(HttpClient):
             response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
             results = response[ITEM]
 
+        if incl:
+            incl = incl if isinstance(incl, list) else [incl]
+            results = [x for x in results if x["type"] in incl]
+
+        if model:
+            results = [model(**x) for x in results]
+
+        return results
+
+    # [GROUPS & WORKSPACES] get workspace
+    async def get_workspace(self, workspace_name: str, workspace_id: int = None):
+        workspaces = await self.list_workspaces(detail=True, model=Workspace)
+        for workspace in workspaces:
+            if workspace.name == workspace_name:
+                if not workspace_id or workspace.id == workspace_id:
+                    return workspace
+        else:
+            raise KeyError()
+
+    ################################################################
+    # (CUSTOM) LS
+    ################################################################
+    # (custom) ls
+    async def ls(self, workspace_name: str = None, base_name: str = None):
+        # ls workspaces
+        if not workspace_name:
+            workspaces = await self.list_workspaces(detail=True, model=Workspace)
+            records = [x.to_record() for x in workspaces]
+            self.print(records=records)
+            return
+
+        # ls bases
+        workspace = await self.get_workspace(workspace_name=workspace_name)
+        if not base_name:
+            bases = list()
+            if workspace.shared_bases:
+                for base in workspace.shared_bases:
+                    bases.append((workspace.name, base))
+            if workspace.bases:
+                for base in workspace.bases:
+                    bases.append((workspace.name, base))
+
+            async def _get_records(workspace_name, base):
+                bc = await self.get_base_client_with_account_token(base=base)
+                tables = await bc.list_tables()
+                return {
+                    "workspace": workspace_name,
+                    "base": base.name,
+                    "base_uuid": base.uuid,
+                    "tables": [x.name for x in tables],
+                }
+
+            records = await asyncio.gather(*[_get_records(w, b) for w, b in bases])
+            self.print(records=records)
+
+        # ls tables
+
+    # [GROUPS & WORKSPACES] search group members
+    # NOT WORKING
+    async def search_group_members(
+        self, group_name: str, query: str = None, model: BaseModel = UserInfo
+    ) -> List[UserInfo]:
+        group = await self.get_workspace(group_name=group_name)
+
+        METHOD = "GET"
+        URL = f"/api/v2.1/groups/{group.id}/search-member/"
+        PARAMS = {"q": query}
+
+        async with self.session_maker(token=self.account_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+
+        if model:
+            results = [model(**x) for x in results]
+
+        return results
+
+    # [GROUPS & WORKSPACES] copy base from workspace
+    async def copy_base_from_workspace(
+        self,
+        src_workspace_id: int,
+        src_base_name: str,
+        dst_workspace_id: int,
+    ) -> dict:
+        METHOD = "POST"
+        URL = f"/api/v2.1/dtable-copy/"
+        JSON = {"src_workspace_id": src_workspace_id, "name": src_base_name, "dst_workspace_id": dst_workspace_id}
+        ITEM = "dtable"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = response[ITEM]
+
+        return results
+
+    # [GROUPS & WORKSPACES] copy base from external link
+    async def copy_base_from_external_link(
+        self,
+        link: str,
+        dst_workspace_id: int,
+    ) -> dict:
+        METHOD = "POST"
+        URL = f"/api/v2.1/dtable-external-link/dtable-copy/"
+        JSON = {"link": link, "dst_workspace_id": dst_workspace_id}
+        ITEM = "dtable"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = response[ITEM]
+
+        return results
+
+    # [GROUPS & WORKSPACES] (custom) copy base between groups
+    async def copy_base_between_groups(
+        self,
+        src_group_name: int,
+        src_base_name: str,
+        dst_group_name: int,
+        model: BaseModel = Base,
+    ) -> dict:
+        src_group, dst_group = await asyncio.gather(
+            self.get_workspace(group_name=src_group_name), self.get_workspace(group_name=dst_group_name)
+        )
+        results = await self.copy_base_from_workspace(
+            src_workspace_id=src_group.id, src_base_name=src_base_name, dst_workspace_id=dst_group.id
+        )
+        if model:
+            results = model(**results)
+
+        return results
+
+    # [GROUPS & WORKSPACES] (custom) copy base between groups
+    async def copy_base_from_external_link_to_group(
+        self,
+        link: str,
+        dst_group_name: int,
+        model: BaseModel = Base,
+    ) -> dict:
+        dst_group = await self.get_workspace(group_name=dst_group_name)
+        results = await self.copy_base_from_external_link(link=link, dst_workspace_id=dst_group.id)
+        if model:
+            results = model(**results)
+
         return results
 
     ################################################################
-    # USER ACCOUNT OPERATION - WEBHOOKS
+    # ATTACHMENT
+    ################################################################
+    # TBD
+
+    ################################################################
+    # IMPORT & EXPORT
+    ################################################################
+    # [IMPORT & EXPORT] import base from xlsx or csv
+    async def import_base_from_xlsx_or_csv(self, workspace_id: int, file: bytes, folder_id: int = None):
+        METHOD = "POST"
+        URL = f"/api/v2.1/workspace/{workspace_id}/synchronous-import/import-excel-csv-to-base/"
+        JSON = {"dtable": file, "folder": folder_id}
+
+        raise NotImplementedError
+
+    # [IMPORT & EXPORT] import table from xlsx or csv
+    async def import_table_from_xlsx_or_csv(self, workspace_id: int, file: bytes, base_uuid: str, table_name: str):
+        METHOD = "POST"
+        URL = f"/api/v2.1/workspace/{workspace_id}/synchronous-import/import-excel-csv-to-table/"
+        JSON = {
+            "workspace_id": workspace_id,
+            "file": file,
+            "dtable_uuid": base_uuid,
+            "table_name": table_name,
+        }
+        raise NotImplementedError
+
+    # [IMPORT & EXPORT] update table from xlsx or csv
+    async def update_base_from_xlsx_or_csv(
+        self, workspace_id: int, file: bytes, base_uuid: str, table_name: str, selected_columns: List[str]
+    ):
+        METHOD = "POST"
+        URL = f"/api/v2.1/workspace/{workspace_id}/synchronous-import/update-table-via-excel-csv/"
+        JSON = {
+            "workspace_id": workspace_id,
+            "file": file,
+            "dtable_uuid": base_uuid,
+            "table_name": table_name,
+            "selected_columns": ",".join(selected_columns) if isinstance(selected_columns, list) else selected_columns,
+        }
+
+        raise NotImplementedError
+
+    # [IMPORT & EXPORT] export base
+    # NOT WORKING
+    async def export_base(self, workspace_id: str, base_name: str):
+        METHOD = "GET"
+        URL = f"/api/v2.1/workspace/{workspace_id}/synchronous-export/export-dtable/"
+        PARAMS = {"base_name": base_name}
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+
+        return response
+
+    # [IMPORT & EXPORT] export table
+    async def export_table(
+        self,
+        workspace_id: str,
+        base_name: str,
+        table_id: int,
+        table_name: str,
+    ):
+        METHOD = "GET"
+        URL = f"/api/v2.1/workspace/{workspace_id}/synchronous-export/export-table-to-excel/"
+        PARAMS = {"base_name": base_name, "table_id": table_id, "table_name": table_name}
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+
+        return response
+
+    # [IMPORT & EXPORT] (custom) export_table
+    async def export_table_by_name(self, group_name: str, base_name: str, table_name: str):
+        pass
+
+    ################################################################
+    # SHARING
+    ################################################################
+    # TBD
+
+    ################################################################
+    # SHARING LINKS
+    ################################################################
+    # TBD
+
+    ################################################################
+    # COMMON DATASET
+    ################################################################
+    # TBD
+
+    ################################################################
+    # DEPARTMENTS
+    ################################################################
+    # TBD
+
+    ################################################################
+    # FORMS
+    ################################################################
+    # TBD
+
+    ################################################################
+    # AUTOMATIONS
+    ################################################################
+    # TBD
+
+    ################################################################
+    # NOTIFICATIONS
+    ################################################################
+    # TBD
+
+    ################################################################
+    # SYSTEM NOTIFICATIONS
+    ################################################################
+    # TBD
+
+    ################################################################
+    # E-MAIL ACCOUNTS
+    ################################################################
+    # TBD
+
+    ################################################################
+    # WEBHOOKS
     ################################################################
     # [WEBHOOKS] list webhooks
     async def list_webhooks(self, workspace_id: str, base_name: str, model: BaseModel = Webhook):
@@ -356,3 +600,8 @@ class UserClient(HttpClient):
             results = response[ITEM]
 
         return results
+
+    ################################################################
+    # SNAPSHOTS
+    ################################################################
+    # TBD

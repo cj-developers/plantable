@@ -26,6 +26,7 @@ from ...model import (
     Webhook,
     BaseInfo,
     Workspace,
+    File,
 )
 from .account import AccountClient
 from ..base import BaseClient
@@ -243,7 +244,7 @@ class UserClient(AccountClient):
 
         # group bases
         for group in results["groups"]:
-            if group["workspace_name"] != workspace_name:
+            if group["group_name"] != workspace_name:
                 continue
             for base in group["dtables"]:
                 if base.name == base_name:
@@ -275,12 +276,16 @@ class UserClient(AccountClient):
         return results
 
     # [GROUPS & WORKSPACES] get workspace
-    async def get_workspace(self, workspace_name: str, workspace_id: int = None):
+    async def get_workspace(self, workspace_name: str, workspace_type: str = "group"):
+        """
+        workspace_type: "group", "personal", "starred", or "shared"
+        """
         workspaces = await self.list_workspaces(detail=True, model=Workspace)
         for workspace in workspaces:
+            if workspace_type and workspace.type != workspace_type:
+                continue
             if workspace.name == workspace_name:
-                if not workspace_id or workspace.id == workspace_id:
-                    return workspace
+                return workspace
         else:
             raise KeyError()
 
@@ -289,6 +294,16 @@ class UserClient(AccountClient):
     ################################################################
     # (custom) ls
     async def ls(self, workspace_name: str = None, base_name: str = None):
+        # helper
+        async def _get_records(workspace_name, base):
+            bc = await self.get_base_client_with_account_token(base=base)
+            tables = await bc.list_tables()
+            return {
+                "base_uuid": base.uuid,
+                "base": base.name,
+                "tables": [x.name for x in tables],
+            }
+
         # ls workspaces
         if not workspace_name:
             workspaces = await self.list_workspaces(detail=True, model=Workspace)
@@ -307,20 +322,17 @@ class UserClient(AccountClient):
                 for base in workspace.bases:
                     bases.append((workspace.name, base))
 
-            async def _get_records(workspace_name, base):
-                bc = await self.get_base_client_with_account_token(base=base)
-                tables = await bc.list_tables()
-                return {
-                    "workspace": workspace_name,
-                    "base": base.name,
-                    "base_uuid": base.uuid,
-                    "tables": [x.name for x in tables],
-                }
-
             records = await asyncio.gather(*[_get_records(w, b) for w, b in bases])
             self.print(records=records)
+            return
 
         # ls tables
+        base = await self.get_base(workspace_name=workspace.name, base_name=base_name)
+        bc = await self.get_base_client_with_account_token(base=base)
+        tables = await bc.list_tables()
+
+        records = [{"table_id": x.id, "table": x.name, "columns": [c.name for c in x.columns]} for x in tables]
+        self.print(records=records)
 
     # [GROUPS & WORKSPACES] search group members
     # NOT WORKING
@@ -450,15 +462,16 @@ class UserClient(AccountClient):
             "table_name": table_name,
             "selected_columns": ",".join(selected_columns) if isinstance(selected_columns, list) else selected_columns,
         }
-
         raise NotImplementedError
 
     # [IMPORT & EXPORT] export base
     # NOT WORKING
-    async def export_base(self, workspace_id: str, base_name: str):
+    async def export_base(self, workspace_name: str, base_name: str):
+        workspace = await self.get_workspace(workspace_name=workspace_name)
+
         METHOD = "GET"
-        URL = f"/api/v2.1/workspace/{workspace_id}/synchronous-export/export-dtable/"
-        PARAMS = {"base_name": base_name}
+        URL = f"/api/v2.1/workspace/{workspace.id}/synchronous-export/export-dtable/"
+        PARAMS = {"dtable_name": base_name}
 
         async with self.session_maker(token=self.account_token) as session:
             response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
@@ -468,14 +481,16 @@ class UserClient(AccountClient):
     # [IMPORT & EXPORT] export table
     async def export_table(
         self,
-        workspace_id: str,
+        workspace_name: str,
         base_name: str,
         table_id: int,
         table_name: str,
     ):
+        workspace = await self.get_workspace(workspace_name=workspace_name)
+
         METHOD = "GET"
-        URL = f"/api/v2.1/workspace/{workspace_id}/synchronous-export/export-table-to-excel/"
-        PARAMS = {"base_name": base_name, "table_id": table_id, "table_name": table_name}
+        URL = f"/api/v2.1/workspace/{workspace.id}/synchronous-export/export-table-to-excel/"
+        PARAMS = {"dtable_name": base_name, "table_id": table_id, "table_name": table_name}
 
         async with self.session_maker(token=self.account_token) as session:
             response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)

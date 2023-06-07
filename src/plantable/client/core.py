@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from tabulate import tabulate
 
 from ..conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
-from ..model import Admin, ApiToken, Base, BaseToken, Column, Table, Team, User, Webhook
+from ..model import Admin, ApiToken, Base, BaseToken, Column, Table, Team, User, Webhook, File
 
 logger = logging.getLogger()
 TABULATE_CONF = {"tablefmt": "psql", "headers": "keys"}
@@ -30,6 +30,7 @@ class HttpClient:
         self.seatable_url = seatable_url
         self.headers = {"accept": "application/json"}
 
+        self.debug = False
         self._request = None
 
     async def info(self):
@@ -64,6 +65,9 @@ class HttpClient:
 
         async with session.request(**self._request) as response:
             response.raise_for_status()
+            if self.debug:
+                print(response.headers)
+                return await response.content()
             try:
                 if response.content_type in ["application/json"]:
                     return await response.json()
@@ -71,6 +75,14 @@ class HttpClient:
                     logger.warning(f"! content-type: {response.content_type}")
                     body = await response.text()
                     return orjson.loads(body)
+                if response.content_type in ["application/ms-excel", "application/x-zip-compressed"]:
+                    content = b""
+                    async for data in response.content.iter_chunked(2048):
+                        content += data
+                    if len(content) != response.content_length:
+                        raise ValueError()
+                    return File(filename=response.content_disposition.filename, content=content)
+
             except Exception as ex:
                 raise ex
 

@@ -9,6 +9,7 @@ __all__ = [
     "DTABLE_ICON_COLORS",
     "ColumnType",
     "Column",
+    "File",
     "Table",
     "User",
     "UserInfo",
@@ -247,8 +248,13 @@ class Workspace(_Model):
     def to_record(self):
         return {
             "type": self.type,
-            "workspace": self.name,
             "workspace_id": self.id,
+            "workspace": self.name,
             "folders": [x["name"] for x in self.folders or []],
             "bases": [x.name for x in self.bases or self.shared_bases],
         }
+
+
+class File(_Model):
+    filename: str
+    content: bytes

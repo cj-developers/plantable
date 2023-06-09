@@ -102,15 +102,18 @@ class ColumnType(Enum):
 
 class Column(_Model):
     key: str  # '0000'
-    type: ColumnType  # 'text'
+    type: str  # 'text' # ColumnType
     name: str  # 'Hive DB'
     editable: bool  # True
     width: int  # 199
     resizable: bool  # True
     draggable: bool = None  # True
+    colorbys: dict = None
+    formatter: dict = None
     data: Any = None  # None
     permission_type: str = None  # ''
     permitted_users: List[str] = None  # []
+    editor: dict = None
     edit_metadata_permission_type: str = None  # ''
     edit_metadata_permitted_users: List[str] = None  # []
     description: str = None  # None
@@ -124,9 +127,9 @@ class View(_Model):
     is_locked: bool = None  # False
     row_height: str = None  # 'default'
     filter_conjunction: str  # 'And'
-    filters: List[str] = None  # []
-    sorts: List[str] = None  # []
-    groupbys: List[str] = None  # []
+    filters: List[dict] = None  # []
+    sorts: List[dict] = None  # []
+    groupbys: List[dict] = None  # []
     colorbys: dict = None  # {}
     hidden_columns: List[str] = None  # []
     rows: List[str] = None  # []
@@ -242,16 +245,17 @@ class Workspace(_Model):
     group_owner: str = None
     group_admins: List[str] = None
     group_member_count: int = None
-    group_shared_dtables: List[str] = None
-    group_shared_views: List[str] = None
+    group_shared_dtables: List[dict] = None
+    group_shared_views: List[dict] = None
 
     def to_record(self):
+        bases = self.bases or self.shared_bases
         return {
             "type": self.type,
             "workspace_id": self.id,
             "workspace": self.name,
-            "folders": [x["name"] for x in self.folders or []],
-            "bases": [x.name for x in self.bases or self.shared_bases],
+            "folders": [x["name"] for x in self.folders] if self.folders else self.folders,
+            "bases": [x.name for x in bases] if bases else bases,
         }
 
 

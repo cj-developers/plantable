@@ -34,10 +34,12 @@ class HttpClient:
         self._request = None
 
     async def info(self):
-        return await self.request(method="GET", url="/server-info/")
+        async with self.session_maker() as session:
+            return await self.request(session=session, method="GET", url="/server-info/")
 
     async def ping(self):
-        return await self.request(method="GET", url="/api2/ping/")
+        async with self.session_maker() as session:
+            return await self.request(session=session, method="GET", url="/api2/ping/")
 
     def session_maker(self, token: str = None):
         headers = self.headers.copy()

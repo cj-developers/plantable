@@ -80,6 +80,15 @@ class BaseClient(HttpClient):
 
         return tables
 
+    # [BASE INFO] (custom) get_table
+    async def get_table(self, table_name: str):
+        tables = await self.list_tables()
+        for table in tables:
+            if table.name == table_name:
+                return table
+        else:
+            raise KeyError()
+
     # [BASE INFO] ls
     async def ls(self, table_name: str = None):
         metadata = await self.get_metadata()

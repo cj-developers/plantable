@@ -23,7 +23,7 @@ from ...model import (
     Webhook,
 )
 from ..base import BaseClient
-from ..core import TABULATE_CONF, HttpClient, parse_base
+from ..core import TABULATE_CONF, HttpClient
 
 logger = logging.getLogger()
 
@@ -60,20 +60,14 @@ class AccountClient(HttpClient):
     async def list_api_tokens(
         self,
         *,
-        base: Base = None,
-        workspace_id: str = None,
-        base_name: str = None,
+        workspace_id: str,
+        base_name: str,
         model: BaseModel = ApiToken,
     ):
         """
         [NOTE]
          workspace id : group = 1 : 1
         """
-        if base:
-            workspace_id, base_name = parse_base(base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/"
         ITEM = "api_tokens"
@@ -93,19 +87,14 @@ class AccountClient(HttpClient):
         app_name: str,
         permission: str = "r",
         *,
-        base: Base = None,
-        workspace_id: str = None,
-        base_name: str = None,
+        workspace_id: str,
+        base_name: str,
         model: BaseModel = ApiToken,
     ):
         """
         [NOTE]
          "bad request" returns if app_name is already exists.
         """
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
 
         METHOD = "POST"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/"
@@ -118,14 +107,7 @@ class AccountClient(HttpClient):
         return results
 
     # [API TOKEN] create temporary api token
-    async def create_temp_api_token(
-        self, *, base: Base = None, workspace_id: str = None, base_name: str = None, model: BaseModel = ApiToken
-    ):
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
+    async def create_temp_api_token(self, *, workspace_id: str, base_name: str, model: BaseModel = ApiToken):
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/temp-api-token/"
         ITEM = "api_token"
@@ -150,19 +132,12 @@ class AccountClient(HttpClient):
     # [API TOKEN] update api token
     async def update_api_token(
         self,
+        workspace_id: str,
+        base_name: str,
         app_name: str,
         permission: str = "r",
-        *,
-        base: Base = None,
-        workspace_id: str = None,
-        base_name: str = None,
         model: BaseModel = ApiToken,
     ):
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
         METHOD = "PUT"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/{app_name}"
         JSON = {"permission": permission}
@@ -174,14 +149,7 @@ class AccountClient(HttpClient):
         return results
 
     # [API TOKEN] delete api token
-    async def delete_api_token(
-        self, app_name: str, *, base: Base = None, workspace_id: str = None, base_name: str = None
-    ):
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
+    async def delete_api_token(self, workspace_id: str, base_name: str, app_name: str):
         METHOD = "DELETE"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/{app_name}"
         ITEM = "success"
@@ -216,13 +184,8 @@ class AccountClient(HttpClient):
 
     # [BASE TOKEN] get base token with account token
     async def get_base_token_with_account_token(
-        self, *, base: Base = None, workspace_id: str = None, base_name: str = None, model: BaseModel = BaseToken
+        self, *, workspace_id: str = None, base_name: str = None, model: BaseModel = BaseToken
     ):
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/access-token/"
 
@@ -248,17 +211,8 @@ class AccountClient(HttpClient):
     # (CUSTOM) GET BASE CLIENT
     ################################################################
     # [BASE CLIENT] (custom) get base client with account token
-    async def get_base_client_with_account_token(
-        self, *, base: Base = None, workspace_id: str = None, base_name: str = None
-    ):
-        if base:
-            workspace_id, base_name = parse_base(base=base)
-        if not workspace_id or not base_name:
-            raise KeyError()
-
-        base_token = await self.get_base_token_with_account_token(
-            base=base, workspace_id=workspace_id, base_name=base_name
-        )
+    async def get_base_client_with_account_token(self, workspace_id: str, base_name: str):
+        base_token = await self.get_base_token_with_account_token(workspace_id=workspace_id, base_name=base_name)
         client = BaseClient(base_token=base_token)
 
         return client

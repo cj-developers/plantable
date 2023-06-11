@@ -30,7 +30,7 @@ from ...model import (
 )
 from .account import AccountClient
 from ..base import BaseClient
-from ..core import TABULATE_CONF, HttpClient, parse_base
+from ..core import TABULATE_CONF, HttpClient, parse_name
 
 logger = logging.getLogger()
 
@@ -43,6 +43,7 @@ class UserClient(AccountClient):
     # Helper
     ################################################################
     async def get_base_client_with_account_token(self, workspace_name: str = None, base_name: str = None):
+        workspace_name, base_name = parse_name(workspace_name, base_name)
         workspace = await self.get_workspace(workspace_name=workspace_name)
         return await super().get_base_client_with_account_token(workspace_id=workspace.id, base_name=base_name)
 
@@ -307,6 +308,8 @@ class UserClient(AccountClient):
     ################################################################
     # (custom) get
     async def get(self, workspace_name: str, base_name: str = None, table_name: str = None):
+        workspace_name, base_name, table_name = parse_name(workspace_name, base_name, table_name)
+
         if table_name:
             bc = await self.get_base_client_with_account_token(workspace_name=workspace_name, base_name=base_name)
             return await bc.get_table(table_name=table_name)
@@ -316,7 +319,10 @@ class UserClient(AccountClient):
 
     # (custom) ls
     async def ls(self, workspace_name: str = None, base_name: str = None, table_name: str = None):
-        # helper
+        # correct names
+        workspace_name, base_name, table_name = parse_name(workspace_name, base_name, table_name)
+
+        # coros
         async def _get_records(workspace_name, base_name):
             bc = await self.get_base_client_with_account_token(workspace_name=workspace_name, base_name=base_name)
             tables = await bc.list_tables()

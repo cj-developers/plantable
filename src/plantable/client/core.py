@@ -9,14 +9,16 @@ from pydantic import BaseModel
 from tabulate import tabulate
 
 from ..conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
-from ..model import Admin, ApiToken, Base, BaseToken, Column, Table, Team, User, Webhook, File
+from ..model import Admin, ApiToken, Base, BaseToken, Column, File, Table, Team, User, Webhook
 
 logger = logging.getLogger()
+
 TABULATE_CONF = {"tablefmt": "psql", "headers": "keys"}
+RESERVED_COLUMNS = ["_id", "_locked", "_locked_by", "_archived", "_creator", "_ctime", "_mtime", "_last_modifier"]
 
 
-def parse_base(base: Base = None):
-    return base.workspace_id, base.name
+def parse_name(*name, delim: str = "/"):
+    return [x for e in name for x in (e.split(delim) if e else [None])][: len(name)]
 
 
 ################################################################

@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, List
+from typing import Any, List, Union
 
+import orjson
 from pydantic import BaseModel, Extra, Field, validator
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "User",
     "UserInfo",
     "Base",
+    "BaseActivity",
     "BaseInfo",
     "Workspace",
 ]
@@ -262,3 +264,15 @@ class Workspace(_Model):
 class File(_Model):
     filename: str
     content: bytes
+
+
+class BaseActivity(_Model):
+    author: str
+    app: str = None
+    op_id: int
+    op_time: datetime
+    operation: dict
+
+    @validator("operation", pre=True)
+    def load_json(cls, v):
+        return orjson.loads(v)

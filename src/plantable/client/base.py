@@ -21,8 +21,9 @@ from ..model import (
     Webhook,
     DTABLE_ICON_LIST,
     DTABLE_ICON_COLORS,
+    BaseActivity,
 )
-from .core import TABULATE_CONF, HttpClient, parse_base
+from .core import TABULATE_CONF, HttpClient
 
 logger = logging.getLogger()
 
@@ -48,7 +49,7 @@ class BaseClient(HttpClient):
     ################################################################
     # BASE INFO
     ################################################################
-    # [BASE INFO] get base info
+    # get base info
     async def get_base_info(self):
         METHOD = "GET"
         URL = f"/dtable-server/dtables/{self.base_uuid}"
@@ -58,7 +59,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [BASE INFO] get metadata
+    # get metadata
     async def get_metadata(self):
         METHOD = "GET"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/metadata/"
@@ -70,7 +71,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [BASE INFO] (custom) list tables
+    # (custom) list tables
     async def list_tables(self, model: BaseModel = Table):
         metadata = await self.get_metadata()
         tables = metadata["tables"]
@@ -80,7 +81,7 @@ class BaseClient(HttpClient):
 
         return tables
 
-    # [BASE INFO] (custom) get_table
+    # (custom) get_table
     async def get_table(self, table_name: str):
         tables = await self.list_tables()
         for table in tables:
@@ -89,7 +90,9 @@ class BaseClient(HttpClient):
         else:
             raise KeyError()
 
-    # [BASE INFO] ls
+    # (custom) get_schema
+
+    # (custom) ls
     async def ls(self, table_name: str = None):
         metadata = await self.get_metadata()
         tables = metadata["tables"]
@@ -391,6 +394,16 @@ class BaseClient(HttpClient):
     ################################################################
     # ROW COMMENTS
     ################################################################
+    async def list_row_comments(self, row_id: str):
+        # NOT WORKING
+        METHOD = "GET"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/comments/"
+        PARAMS = {"row_id": row_id}
+
+        async with self.session_maker(token=self.base_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+
+        return results
 
     ################################################################
     # NOTIFICATION
@@ -399,6 +412,64 @@ class BaseClient(HttpClient):
     ################################################################
     # ACTIVITIES & LOGS
     ################################################################
+    # Get Base Activity Logs
+    async def get_base_activity_log(self, page: int = 1, per_page: int = 25, model: BaseModel = BaseActivity):
+        # rename table in a second step
+        METHOD = "GET"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/operations/"
+        PARAMS = {"page": page, "per_page": per_page}
+        ITEM = "operations"
+
+        async with self.session_maker(token=self.base_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+            results = response[ITEM]
+
+        if model:
+            results = [model(**x) for x in results]
+
+        return results
+
+    # List Row Activities
+    async def list_row_activities(self, row_id: str, page: int = 1, per_page: int = 25):
+        # rename table in a second step
+        METHOD = "GET"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/activities/"
+        PARAMS = {"row_id": row_id, "page": page, "per_page": per_page}
+
+        async with self.session_maker(token=self.base_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+
+        return results
+
+    # List Delete Operation Logs
+    async def list_delete_operation_logs(self, op_type: str, page: int = 1, per_page: int = 25):
+        """
+        op_type
+         delete_row
+         delete_rows
+         delete_table
+         delete_column
+        """
+        # rename table in a second step
+        METHOD = "GET"
+        URL = f"/api/v2.1/dtables/{self.base_uuid}/delete-operation-logs/"
+        PARAMS = {"op_type": op_type, "page": page, "per_page": per_page}
+
+        async with self.session_maker(token=self.base_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+
+        return results
+
+    # List Delete Rows
+    async def list_delete_rows(self):
+        # rename table in a second step
+        METHOD = "GET"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/deleted-rows/"
+
+        async with self.session_maker(token=self.base_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL)
+
+        return results
 
     ################################################################
     # SNAPSHOTS

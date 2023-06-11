@@ -24,7 +24,7 @@ from ...model import (
 )
 from .account import AccountClient
 from ..base import BaseClient
-from ..core import TABULATE_CONF, HttpClient, parse_base
+from ..core import TABULATE_CONF, HttpClient
 
 logger = logging.getLogger()
 

@@ -14,7 +14,6 @@ from ..model import Admin, ApiToken, Base, BaseToken, Column, File, Table, Team,
 logger = logging.getLogger()
 
 TABULATE_CONF = {"tablefmt": "psql", "headers": "keys"}
-RESERVED_COLUMNS = ["_id", "_locked", "_locked_by", "_archived", "_creator", "_ctime", "_mtime", "_last_modifier"]
 
 
 def parse_name(*name, delim: str = "/"):

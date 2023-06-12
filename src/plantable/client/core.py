@@ -8,8 +8,24 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ..conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
-from ..model import Admin, ApiToken, Base, BaseToken, Column, File, Table, Team, User, Webhook
+from ..conf import (
+    SEATABLE_ACCOUNT_TOKEN,
+    SEATABLE_API_TOKEN,
+    SEATABLE_BASE_TOKEN,
+    SEATABLE_URL,
+)
+from ..model import (
+    Admin,
+    ApiToken,
+    Base,
+    BaseToken,
+    Column,
+    File,
+    Table,
+    Team,
+    User,
+    Webhook,
+)
 
 logger = logging.getLogger()
 
@@ -36,7 +52,9 @@ class HttpClient:
 
     async def info(self):
         async with self.session_maker() as session:
-            return await self.request(session=session, method="GET", url="/server-info/")
+            return await self.request(
+                session=session, method="GET", url="/server-info/"
+            )
 
     async def ping(self):
         async with self.session_maker() as session:
@@ -78,13 +96,18 @@ class HttpClient:
                     logger.warning(f"! content-type: {response.content_type}")
                     body = await response.text()
                     return orjson.loads(body)
-                if response.content_type in ["application/ms-excel", "application/x-zip-compressed"]:
+                if response.content_type in [
+                    "application/ms-excel",
+                    "application/x-zip-compressed",
+                ]:
                     content = b""
                     async for data in response.content.iter_chunked(2048):
                         content += data
                     if len(content) != response.content_length:
                         raise ValueError()
-                    return File(filename=response.content_disposition.filename, content=content)
+                    return File(
+                        filename=response.content_disposition.filename, content=content
+                    )
 
             except Exception as ex:
                 raise ex

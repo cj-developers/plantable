@@ -106,10 +106,11 @@ class Column(_Model):
     key: str  # '0000'
     type: str  # 'text' # ColumnType
     name: str  # 'Hive DB'
-    editable: bool  # True
     width: int  # 199
+    editable: bool  # True
     resizable: bool  # True
     draggable: bool = None  # True
+    frozen: bool = None
     colorbys: dict = None
     formatter: dict = None
     data: Any = None  # None
@@ -165,7 +166,7 @@ class User(_Model):
     workspace_id: int = None  # 1
     create_time: datetime  # '2023-05-21T03:04:26+00:00'
     last_login: datetime = None  # '2023-05-28T11:42:01+00:00'
-    role: str  # 'default'
+    role: str = None  # 'default'
     storage_usage: int  # 0
     rows_count: str  # 0
 
@@ -178,7 +179,7 @@ class UserInfo(_Model):
     avatar_url: str = None  # "https://cloud.seatable.io/image-view/avatars/3/7/a0a57575a3ca0c78e8c5b6b0d0dbda/resized/80/cd7f6edd2c75afd3b7299917b3767c0f.png"
     group_id: str = None  # 1
     is_admin: bool = None  # true
-    role: str  # "Owner
+    role: str = None  # "Owner
 
 
 class Base(_Model):
@@ -256,7 +257,9 @@ class Workspace(_Model):
             "type": self.type,
             "workspace_id": self.id,
             "workspace": self.name,
-            "folders": [x["name"] for x in self.folders] if self.folders else self.folders,
+            "folders": [x["name"] for x in self.folders]
+            if self.folders
+            else self.folders,
             "bases": [x.name for x in bases] if bases else bases,
         }
 

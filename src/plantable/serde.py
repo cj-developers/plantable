@@ -10,7 +10,16 @@ logger = logging.getLogger(__name__)
 
 KST = pendulum.timezone("Asia/Seoul")
 
-RESERVED_COLUMNS = ["_id", "_locked", "_locked_by", "_archived", "_creator", "_ctime", "_mtime", "_last_modifier"]
+RESERVED_COLUMNS = [
+    "_id",
+    "_locked",
+    "_locked_by",
+    "_archived",
+    "_creator",
+    "_ctime",
+    "_mtime",
+    "_last_modifier",
+]
 
 SCHEMA_MAP = {
     "text": "text",
@@ -41,11 +50,17 @@ SCHEMA_MAP = {
 class Sea2Py:
     def __init__(self, table_info: Table, users: dict = None):
         self.table_info = table_info
-        self.columns = {x.name: {"type": x.type, "data": x.data} for x in self.table_info.columns}
+        self.columns = {
+            x.name: {"type": x.type, "data": x.data} for x in self.table_info.columns
+        }
         self.users = users
 
     def __call__(self, row):
-        return {self.key_deserializer(k): self.value_deserializer(k, v) for k, v in row.items() if k in self.columns}
+        return {
+            self.key_deserializer(k): self.value_deserializer(k, v)
+            for k, v in row.items()
+            if k in self.columns
+        }
 
     def key_deserializer(self, key: str):
         return key.replace(" ", "_")

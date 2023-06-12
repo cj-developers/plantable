@@ -8,7 +8,12 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ...conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
+from ...conf import (
+    SEATABLE_ACCOUNT_TOKEN,
+    SEATABLE_API_TOKEN,
+    SEATABLE_BASE_TOKEN,
+    SEATABLE_URL,
+)
 from ...model import (
     DTABLE_ICON_COLORS,
     DTABLE_ICON_LIST,
@@ -101,13 +106,17 @@ class AccountClient(HttpClient):
         JSON = {"app_name": app_name, "permission": permission}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
             results = model(**response) if model else response
 
         return results
 
     # [API TOKEN] create temporary api token
-    async def create_temp_api_token(self, *, workspace_id: str, base_name: str, model: BaseModel = ApiToken):
+    async def create_temp_api_token(
+        self, *, workspace_id: str, base_name: str, model: BaseModel = ApiToken
+    ):
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/temp-api-token/"
         ITEM = "api_token"
@@ -143,7 +152,9 @@ class AccountClient(HttpClient):
         JSON = {"permission": permission}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, json=JSON
+            )
             results = model(**response) if model else response
 
         return results
@@ -164,10 +175,14 @@ class AccountClient(HttpClient):
     # AUTHENTICATION - BASE TOKEN
     ################################################################
     # [BASE TOKEN] (custom) update base token
-    async def update_base_token(self, key: str, method: str, url: str, model: BaseModel = BaseToken, **params):
+    async def update_base_token(
+        self, key: str, method: str, url: str, model: BaseModel = BaseToken, **params
+    ):
         if key not in self.base_tokens:
             async with self.session_maker(token=self.account_token) as session:
-                results = await self.request(session=session, method=method, url=url, **params)
+                results = await self.request(
+                    session=session, method=method, url=url, **params
+                )
             if model:
                 results = model(**results)
             self.base_tokens.update({key: results})
@@ -180,39 +195,59 @@ class AccountClient(HttpClient):
         METHOD = "GET"
         URL = "/api/v2.1/dtable/app-access-token/"
 
-        return await self.update_base_token(key=self.api_token, method=METHOD, url=URL, model=model)
+        return await self.update_base_token(
+            key=self.api_token, method=METHOD, url=URL, model=model
+        )
 
     # [BASE TOKEN] get base token with account token
     async def get_base_token_with_account_token(
-        self, *, workspace_id: str = None, base_name: str = None, model: BaseModel = BaseToken
+        self,
+        *,
+        workspace_id: str = None,
+        base_name: str = None,
+        model: BaseModel = BaseToken,
     ):
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/access-token/"
 
-        return await self.update_base_token(key=f"{workspace_id}/{base_name}", method=METHOD, url=URL, model=model)
+        return await self.update_base_token(
+            key=f"{workspace_id}/{base_name}", method=METHOD, url=URL, model=model
+        )
 
     # [BASE TOKEN] get base token with invite link
-    async def get_base_token_with_invite_link(self, link: str, model: BaseModel = BaseToken):
+    async def get_base_token_with_invite_link(
+        self, link: str, model: BaseModel = BaseToken
+    ):
         link = link.rsplit("/links/", 1)[-1].strip("/")
         METHOD = "GET"
         URL = "/api/v2.1/dtable/share-link-access-token/"
 
-        return await self.update_base_token(key=link, method=METHOD, url=URL, model=model, token=link)
+        return await self.update_base_token(
+            key=link, method=METHOD, url=URL, model=model, token=link
+        )
 
     # [BASE TOKEN] get base token with external link
-    async def get_base_token_with_external_link(self, link: str, model: BaseModel = BaseToken):
+    async def get_base_token_with_external_link(
+        self, link: str, model: BaseModel = BaseToken
+    ):
         link = link.rsplit("/external-links/", 1)[-1].strip("/")
         METHOD = "GET"
         URL = f"/api/v2.1/external-link-tokens/{link}/access-token/"
 
-        return await self.update_base_token(key=link, method=METHOD, url=URL, model=model)
+        return await self.update_base_token(
+            key=link, method=METHOD, url=URL, model=model
+        )
 
     ################################################################
     # (CUSTOM) GET BASE CLIENT
     ################################################################
     # [BASE CLIENT] (custom) get base client with account token
-    async def get_base_client_with_account_token(self, workspace_id: str, base_name: str):
-        base_token = await self.get_base_token_with_account_token(workspace_id=workspace_id, base_name=base_name)
+    async def get_base_client_with_account_token(
+        self, workspace_id: str, base_name: str
+    ):
+        base_token = await self.get_base_token_with_account_token(
+            workspace_id=workspace_id, base_name=base_name
+        )
         client = BaseClient(base_token=base_token)
 
         return client

@@ -121,6 +121,13 @@ class Column(_Model):
     edit_metadata_permitted_users: List[str] = None  # []
     description: str = None  # None
 
+    def to_column_info(self):
+        return {
+            "column_name": self.name,
+            "column_type": self.type,
+            "column_data": self.data,
+        }
+
 
 class View(_Model):
     id: str = Field(..., alias="_id")  # '0000'
@@ -152,6 +159,12 @@ class Table(_Model):
     views: List[View] = None
     summary_configs: dict = None
     header_settings: dict = None
+
+    def to_table_info(self):
+        return {
+            "table_name": self.name,
+            "columns": [c.to_column_info() for c in self.columns],
+        }
 
 
 class User(_Model):

@@ -2,13 +2,14 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import List, Union
+import pandas as pd
 
 import aiohttp
 import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ..serde import Sea2Py
+from ..serde import Sea2Py, DT_FMT, to_str_datetime
 
 from pypika import MySQLQuery as PikaQuery, Table as PikaTable
 from pypika.dialects import QueryBuilder
@@ -150,6 +151,31 @@ class BaseClient(HttpClient):
     ################################################################
     # ROWS
     ################################################################
+    # (custom) query_df
+    async def query_df(
+        self,
+        table_name: str,
+        columns: List[str] = None,
+        datetime_field: str = "_mtime",
+        datetime_before: str = None,
+        datetime_after: str = None,
+        limit: int = None,
+        offset: int = 0,
+        incl_sys_cols: bool = True,
+    ) -> pd.DataFrame:
+        records = await self.query(
+            table_name=table_name,
+            columns=columns,
+            datetime_field=datetime_field,
+            datetime_before=datetime_before,
+            datetime_after=datetime_after,
+            limit=limit,
+            offset=offset,
+            incl_sys_cols=incl_sys_cols,
+        )
+
+        return pd.DataFrame.from_records(records)
+
     # (custom) query
     async def query(
         self,
@@ -160,7 +186,8 @@ class BaseClient(HttpClient):
         datetime_after: str = None,
         limit: int = None,
         offset: int = 0,
-    ):
+        incl_sys_cols: bool = True,
+    ) -> List[dict]:
         LIMIT = 100
         OFFSET = 0
 
@@ -173,12 +200,15 @@ class BaseClient(HttpClient):
         )
         _limit = min(LIMIT, limit) if limit else limit
         _offset = offset if offset else OFFSET
-        # _sql = f"SELECT {columns} FROM `{table_name}` LIMIT {{limit}} OFFSET {{offset}}"
 
         q = PikaQuery.from_(table).select(*columns).limit(_limit or LIMIT)
         if datetime_before:
-            q = q.where(table[datetime_field] < datetime_after)
+            if isinstance(datetime_before, datetime):
+                datetime_before = to_str_datetime(datetime_before)
+            q = q.where(table[datetime_field] < datetime_before)
         if datetime_after:
+            if isinstance(datetime_after, datetime):
+                datetime_after = to_str_datetime(datetime_after)
             q = q.where(table[datetime_field] > datetime_after)
 
         # 1st hit
@@ -193,7 +223,8 @@ class BaseClient(HttpClient):
                 if len(_results) < LIMIT:
                     break
 
-        deserialize = Sea2Py(table_info=await self.get_table(table_name))
+        table_info = await self.get_table(table_name)
+        deserialize = Sea2Py(table_info=table_info, incl_sys_cols=incl_sys_cols)
         results = [deserialize(r) for r in results]
 
         return results

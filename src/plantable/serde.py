@@ -49,15 +49,23 @@ SYSTEM_COLUMNS = {
 
 
 def to_datetime(x, dt_fmt=DT_FMT):
-    return datetime.strptime(x, dt_fmt)
+    try:
+        dt = datetime.strptime(x, dt_fmt)
+    except ValueError as ex:
+        dt = datetime.fromisoformat(x)
+    return dt.isoformat(timespec="milliseconds")
+
+
+def to_str_datetime(x):
+    return x.isoformat(timespec="milliseconds")
 
 
 class Sea2Py:
-    def __init__(self, table_info: Table, users: dict = None, return_sys_cols: bool = True):
+    def __init__(self, table_info: Table, users: dict = None, incl_sys_cols: bool = True):
         self.table_info = table_info
         self.columns = {x.name: {"type": x.type, "data": x.data} for x in self.table_info.columns}
-        self.return_sys_cols = return_sys_cols
-        if self.return_sys_cols:
+        self.incl_sys_cols = incl_sys_cols
+        if self.incl_sys_cols:
             self.columns.update(SYSTEM_COLUMNS)
         self.users = users
 

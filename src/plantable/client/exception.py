@@ -1,0 +1,2 @@
+class MoreRows(Exception):
+    pass

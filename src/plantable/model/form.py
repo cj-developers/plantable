@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
 from enum import Enum
-from .core import _Model, ColumnType
+
+from pydantic import BaseModel, Field
+
+from .core import ColumnType, _Model
 
 __all__ = ["NewColumn"]
 

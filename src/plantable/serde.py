@@ -9,17 +9,7 @@ from .model import Table
 logger = logging.getLogger(__name__)
 
 KST = pendulum.timezone("Asia/Seoul")
-
-RESERVED_COLUMNS = [
-    "_id",
-    "_locked",
-    "_locked_by",
-    "_archived",
-    "_creator",
-    "_ctime",
-    "_mtime",
-    "_last_modifier",
-]
+DT_FMT = "%Y-%m-%dT%H:%M:%S.%f%z"
 
 SCHEMA_MAP = {
     "text": "text",
@@ -46,28 +36,38 @@ SCHEMA_MAP = {
     "auto_number": "auto-number",
 }
 
+SYSTEM_COLUMNS = {
+    "_id": {"type": "text"},
+    "_locked": {"type": "checkbox"},
+    "_locked_by": {"type": "text"},
+    "_archived": {"type": "checkbox"},
+    "_creator": {"type": "creator"},
+    "_ctime": {"type": "ctime"},
+    "_mtime": {"type": "mtime"},
+    "_last_modifier": {"type": "last-modifier"},
+}
+
+
+def to_datetime(x, dt_fmt=DT_FMT):
+    return datetime.strptime(x, dt_fmt)
+
 
 class Sea2Py:
-    def __init__(self, table_info: Table, users: dict = None):
+    def __init__(self, table_info: Table, users: dict = None, return_sys_cols: bool = True):
         self.table_info = table_info
-        self.columns = {
-            x.name: {"type": x.type, "data": x.data} for x in self.table_info.columns
-        }
+        self.columns = {x.name: {"type": x.type, "data": x.data} for x in self.table_info.columns}
+        self.return_sys_cols = return_sys_cols
+        if self.return_sys_cols:
+            self.columns.update(SYSTEM_COLUMNS)
         self.users = users
 
     def __call__(self, row):
-        return {
-            self.key_deserializer(k): self.value_deserializer(k, v)
-            for k, v in row.items()
-            if k in self.columns
-        }
-
-    def key_deserializer(self, key: str):
-        return key.replace(" ", "_")
+        records = {k: self.value_deserializer(k, v) for k, v in row.items() if k in self.columns}
+        return {k: records[k] for k in self.columns if k in records}
 
     def value_deserializer(self, key: str, value: Any):
         _type = self.columns[key]["type"].replace("-", "_")
-        _data = self.columns[key]["data"]
+        _data = self.columns[key].get("data", None)
         return getattr(self, "_{}".format(_type))(value, data=_data)
 
     # BOOLEAN
@@ -101,7 +101,7 @@ class Sea2Py:
     def _date(self, value: str, data: dict = None) -> datetime:
         if value.endswith("Z"):
             value = value.replace("Z", "+00:00", 1)
-        return datetime.fromisoformat(value)
+        return to_datetime(value)
 
     def _duration(self, value: str, data: dict = None) -> int:
         """

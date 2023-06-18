@@ -8,27 +8,34 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
+from ..serde import Sea2Py
+
+from pypika import MySQLQuery as PikaQuery, Table as PikaTable
+from pypika.dialects import QueryBuilder
+
 from ..conf import (
     SEATABLE_ACCOUNT_TOKEN,
     SEATABLE_API_TOKEN,
     SEATABLE_BASE_TOKEN,
     SEATABLE_URL,
 )
+
 from ..model import (
+    DTABLE_ICON_COLORS,
+    DTABLE_ICON_LIST,
     Admin,
     ApiToken,
     Base,
+    BaseActivity,
     BaseToken,
     Column,
     Table,
     Team,
     User,
     Webhook,
-    DTABLE_ICON_LIST,
-    DTABLE_ICON_COLORS,
-    BaseActivity,
 )
 from .core import TABULATE_CONF, HttpClient
+from .exception import MoreRows
 
 logger = logging.getLogger()
 
@@ -107,10 +114,7 @@ class BaseClient(HttpClient):
                     break
             else:
                 raise KeyError()
-            columns = [
-                {"key": c["key"], "name": c["name"], "type": c["type"]}
-                for c in table["columns"]
-            ]
+            columns = [{"key": c["key"], "name": c["name"], "type": c["type"]} for c in table["columns"]]
             print(tabulate(columns, **TABULATE_CONF))
             return
         _tables = list()
@@ -146,25 +150,72 @@ class BaseClient(HttpClient):
     ################################################################
     # ROWS
     ################################################################
+    # (custom) query
+    async def query(
+        self,
+        table_name: str,
+        columns: List[str] = None,
+        datetime_field: str = "_mtime",
+        datetime_before: str = None,
+        datetime_after: str = None,
+        limit: int = None,
+        offset: int = 0,
+    ):
+        LIMIT = 100
+        OFFSET = 0
+
+        # correct args
+        table = PikaTable(table_name)
+        columns = (
+            "*"
+            if not columns
+            else ", ".join(columns if isinstance(columns, list) else [c.strip() for c in columns.split(",")])
+        )
+        _limit = min(LIMIT, limit) if limit else limit
+        _offset = offset if offset else OFFSET
+        # _sql = f"SELECT {columns} FROM `{table_name}` LIMIT {{limit}} OFFSET {{offset}}"
+
+        q = PikaQuery.from_(table).select(*columns).limit(_limit or LIMIT)
+        if datetime_before:
+            q = q.where(table[datetime_field] < datetime_after)
+        if datetime_after:
+            q = q.where(table[datetime_field] > datetime_after)
+
+        # 1st hit
+        results = await self.sql_query(sql=q.offset(_offset))
+
+        # get all records
+        if not limit or len(results) < limit:
+            while True:
+                _offset += LIMIT
+                _results = await self.sql_query(sql=q.offset(_offset))
+                results += _results
+                if len(_results) < LIMIT:
+                    break
+
+        deserialize = Sea2Py(table_info=await self.get_table(table_name))
+        results = [deserialize(r) for r in results]
+
+        return results
+
     # [ROWS] list rows (SQL)
-    async def query(self, sql: str, convert_keys: bool = True):
-        # MAX 10,000 Rows - [TODO] Check length
+    async def sql_query(self, sql: Union[str, QueryBuilder], convert_keys: bool = True):
+        """
+        [NOTE]
+         default LIMIT 100 when not LIMIT is given!
+         max LIMIT 10000
+        """
         METHOD = "POST"
         URL = f"/dtable-db/api/v1/query/{self.base_uuid}/"
-        JSON = {"sql": sql, "convert_keys": convert_keys}
+        JSON = {"sql": sql.get_sql() if isinstance(sql, QueryBuilder) else sql, "convert_keys": convert_keys}
         SUCCESS = "success"
         ITEM = "results"
 
         async with self.session_maker(token=self.base_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
             if not response[SUCCESS]:
                 raise Exception(response)
             results = response[ITEM]
-
-        if len(results) == 10000:
-            logger.warning("Only 10,000 rows are returned!")
 
         return results
 
@@ -199,9 +250,7 @@ class BaseClient(HttpClient):
         }
 
         async with self.session_maker(token=self.base_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **params
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **params)
             response = response[ITEM]
             results = response
 
@@ -209,9 +258,7 @@ class BaseClient(HttpClient):
             if get_all_rows:
                 while len(response) == limit:
                     params.update({"start": params["start"] + 1})
-                    response = await self.request(
-                        session=session, method=METHOD, url=URL, **params
-                    )
+                    response = await self.request(session=session, method=METHOD, url=URL, **params)
                     response = response[ITEM]
                     results += response
 
@@ -238,9 +285,7 @@ class BaseClient(HttpClient):
             )
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -253,9 +298,7 @@ class BaseClient(HttpClient):
         ITEM = "success"
 
         async with self.session_maker(token=self.base_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
             results = response[ITEM]
 
         return results
@@ -267,9 +310,7 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "row_id": row_id}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -282,9 +323,7 @@ class BaseClient(HttpClient):
         params = {"table_name": table_name, "convert": str(convert).lower()}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, **params
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, **params)
 
         return results
 
@@ -296,9 +335,7 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "rows": rows}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -310,9 +347,7 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "updates": updates}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -323,9 +358,7 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "row_ids": row_ids}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -336,9 +369,7 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "row_ids": row_ids}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -349,9 +380,7 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "row_ids": row_ids}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -373,9 +402,7 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "columns": columns}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -386,9 +413,7 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "new_table_name": new_table_name}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -399,9 +424,7 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -413,9 +436,7 @@ class BaseClient(HttpClient):
         JSON = {"table_name": table_name, "is_duplicate_records": is_duplicate_records}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
 
@@ -441,9 +462,7 @@ class BaseClient(HttpClient):
         PARAMS = {"row_id": row_id}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
 
         return results
 
@@ -455,9 +474,7 @@ class BaseClient(HttpClient):
     # ACTIVITIES & LOGS
     ################################################################
     # Get Base Activity Logs
-    async def get_base_activity_log(
-        self, page: int = 1, per_page: int = 25, model: BaseModel = BaseActivity
-    ):
+    async def get_base_activity_log(self, page: int = 1, per_page: int = 25, model: BaseModel = BaseActivity):
         # rename table in a second step
         METHOD = "GET"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/operations/"
@@ -465,9 +482,7 @@ class BaseClient(HttpClient):
         ITEM = "operations"
 
         async with self.session_maker(token=self.base_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
             results = response[ITEM]
 
         if model:
@@ -483,16 +498,12 @@ class BaseClient(HttpClient):
         PARAMS = {"row_id": row_id, "page": page, "per_page": per_page}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
 
         return results
 
     # List Delete Operation Logs
-    async def list_delete_operation_logs(
-        self, op_type: str, page: int = 1, per_page: int = 25
-    ):
+    async def list_delete_operation_logs(self, op_type: str, page: int = 1, per_page: int = 25):
         """
         op_type
          delete_row
@@ -506,9 +517,7 @@ class BaseClient(HttpClient):
         PARAMS = {"op_type": op_type, "page": page, "per_page": per_page}
 
         async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
 
         return results
 

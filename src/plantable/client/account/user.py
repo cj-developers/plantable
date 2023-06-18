@@ -22,20 +22,20 @@ from ...model import (
     Admin,
     ApiToken,
     Base,
+    BaseInfo,
     BaseToken,
     Column,
+    File,
     Table,
     Team,
     User,
     UserInfo,
     Webhook,
-    BaseInfo,
     Workspace,
-    File,
 )
-from .account import AccountClient
 from ..base import BaseClient
 from ..core import TABULATE_CONF, HttpClient, parse_name
+from .account import AccountClient
 
 logger = logging.getLogger()
 

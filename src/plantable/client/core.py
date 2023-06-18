@@ -8,12 +8,7 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ..conf import (
-    SEATABLE_ACCOUNT_TOKEN,
-    SEATABLE_API_TOKEN,
-    SEATABLE_BASE_TOKEN,
-    SEATABLE_URL,
-)
+from ..conf import SEATABLE_URL
 from ..model import (
     Admin,
     ApiToken,
@@ -45,8 +40,8 @@ class HttpClient:
         seatable_url: str = SEATABLE_URL,
     ):
         self.seatable_url = seatable_url
-        self.headers = {"accept": "application/json"}
 
+        self.headers = {"accept": "application/json"}
         self.debug = False
         self._request = None
 

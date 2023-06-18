@@ -12,7 +12,9 @@ from ...conf import (
     SEATABLE_ACCOUNT_TOKEN,
     SEATABLE_API_TOKEN,
     SEATABLE_BASE_TOKEN,
+    SEATABLE_PASSWORD,
     SEATABLE_URL,
+    SEATABLE_USERNAME,
 )
 from ...model import (
     DTABLE_ICON_COLORS,
@@ -40,21 +42,25 @@ class AccountClient(HttpClient):
     def __init__(
         self,
         seatable_url: str = SEATABLE_URL,
+        seatable_username: str = SEATABLE_USERNAME,
+        seatable_password: str = SEATABLE_PASSWORD,
         account_token: str = SEATABLE_ACCOUNT_TOKEN,
         api_token: str = None,
     ):
         super().__init__(seatable_url=seatable_url)
+        self.username = seatable_username
+        self.password = seatable_password
         self.account_token = account_token
         self.api_token = api_token
         self.base_tokens = dict()
 
-    async def login(self, username: str, password: str):
+    async def login(self):
         async with self.session_maker() as session:
             response = await self.request(
                 session=session,
                 method="POST",
                 url="/api2/auth-token/",
-                json={"username": username, "password": password},
+                json={"username": self.username, "password": self.password},
             )
         self.account_token = response["token"]
 

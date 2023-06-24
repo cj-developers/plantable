@@ -4,7 +4,7 @@ from typing import Any, List, Union
 
 import pendulum
 
-from .model import Table
+from ..model import Table
 
 logger = logging.getLogger(__name__)
 

@@ -2,26 +2,18 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import List, Union
-import pandas as pd
 
 import aiohttp
 import orjson
+import pandas as pd
 from pydantic import BaseModel
+from pypika import MySQLQuery as PikaQuery
+from pypika import Table as PikaTable
+from pypika.dialects import QueryBuilder
 from tabulate import tabulate
 
-from ..serde import Sea2Py, DT_FMT, to_str_datetime
-
-from pypika import MySQLQuery as PikaQuery, Table as PikaTable
-from pypika.dialects import QueryBuilder
-
-from ..conf import (
-    SEATABLE_ACCOUNT_TOKEN,
-    SEATABLE_API_TOKEN,
-    SEATABLE_BASE_TOKEN,
-    SEATABLE_URL,
-)
-
-from ..model import (
+from ...conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
+from ...model import (
     DTABLE_ICON_COLORS,
     DTABLE_ICON_LIST,
     Admin,
@@ -35,8 +27,9 @@ from ..model import (
     User,
     Webhook,
 )
-from .core import TABULATE_CONF, HttpClient
-from .exception import MoreRows
+from ...schema.serde import DT_FMT, Sea2Py, to_str_datetime
+from ..core import TABULATE_CONF, HttpClient
+from ..exception import MoreRows
 
 logger = logging.getLogger()
 

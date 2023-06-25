@@ -68,13 +68,7 @@ class AccountClient(HttpClient):
     # AUTHENTICATION - API TOKEN
     ################################################################
     # [API TOKEN] list api tokens
-    async def list_api_tokens(
-        self,
-        *,
-        workspace_id: str,
-        base_name: str,
-        model: BaseModel = ApiToken,
-    ):
+    async def list_api_tokens(self, workspace_id: str, base_name: str, model: BaseModel = ApiToken):
         """
         [NOTE]
          workspace id : group = 1 : 1
@@ -93,36 +87,30 @@ class AccountClient(HttpClient):
         return results
 
     # [API TOKEN] create api token
-    async def create_api_token(
-        self,
-        app_name: str,
-        permission: str = "r",
-        *,
-        workspace_id: str,
-        base_name: str,
-        model: BaseModel = ApiToken,
+    async def get_or_create_api_token(
+        self, workspace_id: str, base_name: str, app_name: str, permission: str = "rw", model: BaseModel = ApiToken
     ):
         """
         [NOTE]
          "bad request" returns if app_name is already exists.
         """
+        api_tokens = await self.list_api_tokens(workspace_id=workspace_id, base_name=base_name)
+        for api_token in api_tokens:
+            if api_token.app_name == app_name:
+                return api_token
 
         METHOD = "POST"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/"
         JSON = {"app_name": app_name, "permission": permission}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
             results = model(**response) if model else response
 
         return results
 
     # [API TOKEN] create temporary api token
-    async def create_temp_api_token(
-        self, *, workspace_id: str, base_name: str, model: BaseModel = ApiToken
-    ):
+    async def create_temp_api_token(self, workspace_id: str, base_name: str, model: BaseModel = ApiToken):
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/temp-api-token/"
         ITEM = "api_token"
@@ -146,21 +134,14 @@ class AccountClient(HttpClient):
 
     # [API TOKEN] update api token
     async def update_api_token(
-        self,
-        workspace_id: str,
-        base_name: str,
-        app_name: str,
-        permission: str = "r",
-        model: BaseModel = ApiToken,
+        self, workspace_id: str, base_name: str, app_name: str, permission: str = "rw", model: BaseModel = ApiToken
     ):
         METHOD = "PUT"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/api-tokens/{app_name}"
         JSON = {"permission": permission}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
             results = model(**response) if model else response
 
         return results
@@ -180,80 +161,64 @@ class AccountClient(HttpClient):
     ################################################################
     # AUTHENTICATION - BASE TOKEN
     ################################################################
-    # [BASE TOKEN] (custom) update base token
-    async def update_base_token(
-        self, key: str, method: str, url: str, model: BaseModel = BaseToken, **params
-    ):
-        if key not in self.base_tokens:
-            async with self.session_maker(token=self.account_token) as session:
-                results = await self.request(
-                    session=session, method=method, url=url, **params
-                )
-            if model:
-                results = model(**results)
-            self.base_tokens.update({key: results})
-
-        return self.base_tokens[key]
-
-    # [BASE TOKEN] get base token with api token
-    # NOT WORKING - 403 Forbidden
-    async def get_base_token_with_api_token(self, *, model: BaseModel = BaseToken):
-        METHOD = "GET"
-        URL = "/api/v2.1/dtable/app-access-token/"
-
-        return await self.update_base_token(
-            key=self.api_token, method=METHOD, url=URL, model=model
-        )
-
     # [BASE TOKEN] get base token with account token
     async def get_base_token_with_account_token(
-        self,
-        *,
-        workspace_id: str = None,
-        base_name: str = None,
-        model: BaseModel = BaseToken,
+        self, workspace_id: str = None, base_name: str = None, model: BaseModel = BaseToken
     ):
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/access-token/"
 
-        return await self.update_base_token(
-            key=f"{workspace_id}/{base_name}", method=METHOD, url=URL, model=model
-        )
+        async with self.session_maker(token=self.account_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL)
+        if model:
+            results = model(**results)
+
+        return results
+
+    # [BASE TOKEN] get base token with api token
+    async def get_base_token_with_api_token(self, api_token: str, model: BaseModel = BaseToken):
+        METHOD = "GET"
+        URL = "/api/v2.1/dtable/app-access-token/"
+
+        async with self.session_maker(token=api_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL)
+        if model:
+            results = model(**results)
+
+        return results
 
     # [BASE TOKEN] get base token with invite link
-    async def get_base_token_with_invite_link(
-        self, link: str, model: BaseModel = BaseToken
-    ):
+    async def get_base_token_with_invite_link(self, link: str, model: BaseModel = BaseToken):
         link = link.rsplit("/links/", 1)[-1].strip("/")
         METHOD = "GET"
         URL = "/api/v2.1/dtable/share-link-access-token/"
 
-        return await self.update_base_token(
-            key=link, method=METHOD, url=URL, model=model, token=link
-        )
+        async with self.session_maker(token=link) as session:
+            results = await self.request(session=session, method=METHOD, url=URL)
+        if model:
+            results = model(**results)
+
+        return results
 
     # [BASE TOKEN] get base token with external link
-    async def get_base_token_with_external_link(
-        self, link: str, model: BaseModel = BaseToken
-    ):
+    async def get_base_token_with_external_link(self, link: str, model: BaseModel = BaseToken):
         link = link.rsplit("/external-links/", 1)[-1].strip("/")
         METHOD = "GET"
         URL = f"/api/v2.1/external-link-tokens/{link}/access-token/"
 
-        return await self.update_base_token(
-            key=link, method=METHOD, url=URL, model=model
-        )
+        async with self.session_maker(token=link) as session:
+            results = await self.request(session=session, method=METHOD, url=URL)
+        if model:
+            results = model(**results)
+
+        return results
 
     ################################################################
     # (CUSTOM) GET BASE CLIENT
     ################################################################
     # [BASE CLIENT] (custom) get base client with account token
-    async def get_base_client_with_account_token(
-        self, workspace_id: str, base_name: str
-    ):
-        base_token = await self.get_base_token_with_account_token(
-            workspace_id=workspace_id, base_name=base_name
-        )
+    async def get_base_client_with_account_token(self, workspace_id: str, base_name: str):
+        base_token = await self.get_base_token_with_account_token(workspace_id=workspace_id, base_name=base_name)
         client = BaseClient(base_token=base_token)
 
         return client

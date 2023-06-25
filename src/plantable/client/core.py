@@ -35,10 +35,7 @@ def parse_name(*name, delim: str = "/"):
 # HttpClient
 ################################################################
 class HttpClient:
-    def __init__(
-        self,
-        seatable_url: str = SEATABLE_URL,
-    ):
+    def __init__(self, seatable_url: str = SEATABLE_URL):
         self.seatable_url = seatable_url
 
         self.headers = {"accept": "application/json"}

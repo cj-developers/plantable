@@ -126,7 +126,7 @@ class AdminClient(AccountClient):
         raise NotImplementedError
 
     # (Admin) Search User / Users
-    async def search_user(self, query: str, model: BaseModel = User):
+    async def search_users(self, query: str, model: BaseModel = User):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
         URL = "/api/v2.1/admin/search-user"
@@ -159,19 +159,20 @@ class AdminClient(AccountClient):
     async def decode_user(self, user_email):
         if user_email.endswith("@auth.local"):
             return user_email
-        user = await self.search_user(query=user_email)
-        if len(user) < 1:
+        users = await self.search_users(query=user_email)
+        if len(users) < 1:
             raise KeyError("{} is not found!".format(user_email))
-        if len(user) > 1:
-            raise KeyError("Multiple users are found!")
-        return user[0].email
+        for user in users:
+            if user.contact_email == user_email:
+                return user.email
+        raise KeyError("{} is not found!".format(user_email))
 
     # (Custom) Encode User Emails
     async def encode_user(self, user_email):
         if not user_email.endswith("@auth.local"):
             return user_email
         user = await self.get_user(user_email=user_email)
-        return user.email
+        return user.contact_email
 
     ################################################################
     # Bases (Admin, User)
@@ -640,3 +641,27 @@ class AdminClient(AccountClient):
             response = await self.request(session=session, method=METHOD, url=URL)
 
         return response
+
+    ################################################################
+    # CUSTOM
+    ################################################################
+    async def infer_workspace_id(self, group_name_or_id: Union[str, int]):
+        bases = await self.list_group_bases(group_name_or_id)
+        workspace_id = None
+        for base in bases:
+            if workspace_id is None:
+                workspace_id = base.workspace_id
+            if workspace_id != base.workspace_id:
+                raise KeyError("workspace id is not unique!")
+        return workspace_id
+
+    async def get_base_client_with_account_token(self, group_name_or_id: Union[str, int], base_name: str):
+        members = await self.list_group_members(name_or_id=group_name_or_id)
+        for member in members:
+            if member.contact_email == self.username:
+                break
+        else:
+            me = await self.decode_user(user_email=self.username)
+            _ = await self.add_group_members(name_or_id=group_name_or_id, user_emails=[me])
+        workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
+        return await super().get_base_client_with_account_token(workspace_id=workspace_id, base_name=base_name)

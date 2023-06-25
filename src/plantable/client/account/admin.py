@@ -51,19 +51,12 @@ class AdminClient(AccountClient):
 
         # 1st page
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
             results = response[ITEM]
 
             # all pages
             pages = range(2, response["total_count"] + 1, 25)
-            coros = [
-                self.request(
-                    session=session, method=METHOD, url=URL, page=page, **PARAMS
-                )
-                for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [user for response in responses for user in response[ITEM]]
 
@@ -81,9 +74,7 @@ class AdminClient(AccountClient):
 
         # admins endpoint has no pagenation
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **params
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **params)
             results = response[ITEM]
 
         if model:
@@ -100,9 +91,7 @@ class AdminClient(AccountClient):
 
         # admins endpoint has no pagenation
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, query=query, **params
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, query=query, **params)
         results = response[ITEM]
 
         # model
@@ -115,7 +104,7 @@ class AdminClient(AccountClient):
     # SYSTEM ADMIN - BASES
     ################################################################
     # [BASES] list bases
-    async def list_bases(self, model: BaseModel = Base, **params):
+    async def list_bases(self, model: BaseModel = Base):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
         URL = "/api/v2.1/admin/dtables"
@@ -123,18 +112,13 @@ class AdminClient(AccountClient):
 
         # 1st page
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **params
-            )
+            response = await self.request(session=session, method=METHOD, url=URL)
             results = response[ITEM]
 
             # all pages
             while response["page_info"]["has_next_page"]:
                 page = response["page_info"]["current_page"] + 1
-                params.update({"page": page})
-                response = await self.request(
-                    session=session, method="GET", url=URL, **params
-                )
+                response = await self.request(session=session, method="GET", url=URL, page=page)
                 results += [response[ITEM]]
 
         # model
@@ -144,7 +128,7 @@ class AdminClient(AccountClient):
         return results
 
     # [BASES] list user's bases
-    async def list_user_bases(self, user_id: str, model: BaseModel = Base, **params):
+    async def list_user_bases(self, user_id: str, model: BaseModel = Base):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
         URL = f"/api/v2.1/admin/users/{user_id}/dtables/"
@@ -152,19 +136,12 @@ class AdminClient(AccountClient):
 
         # 1st page
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **params
-            )
+            response = await self.request(session=session, method=METHOD, url=URL)
             results = response[ITEM]
 
             # all pages
             pages = range(2, response["count"] + 1, 25)
-            coros = [
-                self.request(
-                    session=session, method=METHOD, url=URL, page=page, **params
-                )
-                for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [user for response in responses for user in response[ITEM]]
 
@@ -187,9 +164,7 @@ class AdminClient(AccountClient):
         return results
 
     # [BASES] list trashed bases
-    async def list_trashed_bases(
-        self, per_page: int = 25, model: BaseModel = Base, **params
-    ):
+    async def list_trashed_bases(self, per_page: int = 25, model: BaseModel = Base, **params):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
         URL = "/api/v2.1/admin/trash-dtables"
@@ -198,19 +173,12 @@ class AdminClient(AccountClient):
 
         # 1st page
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
             results = response[ITEM]
 
             # all pages
             pages = range(2, response["count"] + 1, per_page)
-            coros = [
-                self.request(
-                    session=session, method=METHOD, url=URL, page=page, **PARAMS
-                )
-                for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [user for response in responses for user in response[ITEM]]
 
@@ -226,7 +194,7 @@ class AdminClient(AccountClient):
         self.print(records=records)
 
     # [BASES] (custom) get base by group name
-    async def get_base_by_name(self, group_name: int, base_name: str):
+    async def get_base(self, group_name: Union[str, int], base_name: str):
         bases = await self.list_bases()
         for base in bases:
             _base = base.dict() if isinstance(base, BaseModel) else base
@@ -239,13 +207,15 @@ class AdminClient(AccountClient):
             raise KeyError(msg)
 
     ################################################################
+    # GROUPS
+    ################################################################
+
+    ################################################################
     # SYSTEM ADMIN - TEAMS
     # [NOTE] TEAMS는 Server Version에서 안 되는 것 같다.
     ################################################################
     # [TEAMS] list teams
-    async def list_teams(
-        self, role: str = None, per_page: int = 25, model: BaseModel = Team, **params
-    ):
+    async def list_teams(self, role: str = None, per_page: int = 25, model: BaseModel = Team, **params):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
         URL = "/api/v2.1/admin/organizations/"
@@ -254,19 +224,12 @@ class AdminClient(AccountClient):
 
         # 1st page
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
             results = response[ITEM]
 
             # all pages
             pages = range(2, response["count"] + 1, per_page)
-            coros = [
-                self.request(
-                    session=session, method=METHOD, url=URL, page=page, **PARAMS
-                )
-                for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [x for response in responses for x in response[ITEM]]
 
@@ -283,38 +246,27 @@ class AdminClient(AccountClient):
         PARAMS = {"org_ids": org_ids if isinstance(org_ids, list) else [org_ids]}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
 
         return response
 
     # [TEAMS] list team groups
     # NOT WORKING YET - Server 버전에서는 안 되는 것 같다. ORG가 없어서.
-    async def list_team_groups(
-        self, org_id: int = -1, model: BaseModel = Team, **params
-    ):
+    async def list_groups(self, org_id: int = -1, model: BaseModel = Team, **params):
         METHOD = "GET"
-        URL = f"/api/v2.1/admin/organizations/{org_id}/groups"
-        ITEM = "group_list"
+        URL = f"/api/v2.1/org/{org_id}/admin/groups/"
+        ITEM = "groups"
 
         # 1st page
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **params
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **params)
             results = response[ITEM]
 
             print(results)
 
             # all pages
             pages = range(2, response["total_count"] + 1, 25)
-            coros = [
-                self.request(
-                    session=session, method=METHOD, url=URL, page=page, **params
-                )
-                for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **params) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [x for response in responses for x in response[ITEM]]
 
@@ -323,35 +275,41 @@ class AdminClient(AccountClient):
 
         return results
 
+    # [TEAMS] list team groups
+    # NOT WORKING YET - Server 버전에서는 안 되는 것 같다. ORG가 없어서.
+    async def get_group(self, org_id: int = -1, group_id: int = None, model: BaseModel = None):
+        METHOD = "GET"
+        URL = f"/api/v2.1/org/{org_id}/admin/groups/{group_id}/"
+
+        # 1st page
+        async with self.session_maker(token=self.account_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL)
+
+        if model:
+            results = model(**results)
+
+        return results
+
     ################################################################
     # SYSTEM ADMIN - DEPARTMENTS
     # [NOTE] Server 버전에서 안 되는 것 같다. ORG가 없어서.
     ################################################################
     # [DEPARTMENTS] list departments
-    async def list_departments(
-        self, parent_department_id: int = -1, model: BaseModel = None, **params
-    ):
+    async def list_departments(self, parent_department_id: int = -1, model: BaseModel = None, **params):
         METHOD = "GET"
         URL = f"/api/v2.1/admin/address-book/groups/{parent_department_id}/"
         ITEM = "group_list"
 
         # 1st page
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **params
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **params)
             results = response
 
             print(results)
 
             # all pages
             pages = range(2, response["total_count"] + 1, 25)
-            coros = [
-                self.request(
-                    session=session, method=METHOD, url=URL, page=page, **params
-                )
-                for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **params) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [x for response in responses for x in response[ITEM]]
 

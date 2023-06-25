@@ -17,6 +17,7 @@ __all__ = [
     "Base",
     "BaseActivity",
     "BaseInfo",
+    "Group",
     "Workspace",
 ]
 
@@ -171,17 +172,25 @@ class User(_Model):
     email: str  # '2926d3fa3a364558bac8a550811dbe0e@auth.local'
     name: str  # 'admin'
     contact_email: str  # 'woojin.cho@gmail.com'
-    unit: str = None  # ''
     login_id: str = None  # ''
+    phone: str = None
+    avatar_url: str = None
+    unit: str = None  # ''
+    id_in_org: str = None  # ''
     is_staff: bool  # True
     is_active: bool  # True
-    id_in_org: str = None  # ''
+    role: str = None  # 'default'
     workspace_id: int = None  # 1
     create_time: datetime  # '2023-05-21T03:04:26+00:00'
     last_login: datetime = None  # '2023-05-28T11:42:01+00:00'
-    role: str = None  # 'default'
+    storage_quota: int = None
     storage_usage: int  # 0
-    rows_count: str  # 0
+    row_limit: int = None
+    row_usage: int = None
+    rows_count: int = None  # 0
+    source: str = None
+    quota_total: int = None
+    quota_usage: int = None
 
 
 class UserInfo(_Model):
@@ -200,6 +209,9 @@ class Base(_Model):
     workspace_id: int  # 3
     uuid: str  # '166424ad-b023-47a0-9a35-76077f5b629b'
     name: str  # 'employee'
+    creator: str = None  # "Jasmin Tee"
+    creator_email: str = None
+    modifier: str = None  # "Jasmin Tee"
     created_at: datetime  # '2023-05-21T04:33:18+00:00'
     updated_at: datetime  # '2023-05-21T04:33:30+00:00'
     color: str = None  # None
@@ -212,6 +224,10 @@ class Base(_Model):
     group_id: int = None  # 1
     owner: str = None  # 'Employee (group)'
     owner_deleted: bool = False  # False
+    from_user: str = None
+    from_user_name: str = None
+    from_user_avatar: str = None
+    permission: str = None
     file_size: int = None  # 10577
     rows_count: int = None  # 0
 
@@ -249,6 +265,17 @@ class BaseInfo(_Model):
     permission: str = None
 
 
+class Group(_Model):
+    id: int
+    name: str
+    owner: str
+    owner_name: str
+    created_at: datetime
+    quota: int
+    parent_group_id: int
+    size: int
+
+
 class Workspace(_Model):
     id: int = None
     name: str
@@ -270,9 +297,7 @@ class Workspace(_Model):
             "type": self.type,
             "workspace_id": self.id,
             "workspace": self.name,
-            "folders": [x["name"] for x in self.folders]
-            if self.folders
-            else self.folders,
+            "folders": [x["name"] for x in self.folders] if self.folders else self.folders,
             "bases": [x.name for x in bases] if bases else bases,
         }
 

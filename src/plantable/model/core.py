@@ -19,6 +19,8 @@ __all__ = [
     "BaseInfo",
     "Group",
     "Workspace",
+    "BaseExternalLink",
+    "ViewExternalLink",
 ]
 
 
@@ -317,3 +319,33 @@ class BaseActivity(_Model):
     @validator("operation", pre=True)
     def load_json(cls, v):
         return orjson.loads(v)
+
+
+class BaseExternalLink(_Model):
+    id: int
+    from_dtable: str
+    from_base_uuid: str = None
+    creator: str
+    creator_name: str
+    token: str
+    permission: str
+    create_at: datetime
+    view_cnt: int
+    url: str
+
+
+class ViewExternalLink(_Model):
+    id: int
+    from_dtable: str
+    from_base_uuid: str = None
+    creator: str
+    creator_name: str
+    token: str
+    permission: str
+    create_at: datetime
+    view_cnt: int
+    table_id: str
+    view_id: str
+    url: str
+    is_custom: bool
+    expire_date: datetime = None

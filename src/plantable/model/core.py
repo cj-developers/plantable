@@ -12,6 +12,7 @@ __all__ = [
     "Column",
     "File",
     "Table",
+    "View",
     "User",
     "UserInfo",
     "Base",
@@ -173,6 +174,7 @@ class Table(_Model):
 class User(_Model):
     email: str  # '2926d3fa3a364558bac8a550811dbe0e@auth.local'
     name: str  # 'admin'
+    name_pinyin: str = None
     contact_email: str  # 'woojin.cho@gmail.com'
     login_id: str = None  # ''
     phone: str = None
@@ -198,12 +200,14 @@ class User(_Model):
 class UserInfo(_Model):
     email: str  # "876543216569491ba42905bf1647fd3f@auth.local"
     name: str
+    name_pinyin: str = None
     contact_email: str = None  # "michael@example.com"
     login_id: str = None  # ""
-    avatar_url: str = None  # "https://cloud.seatable.io/image-view/avatars/3/7/a0a57575a3ca0c78e8c5b6b0d0dbda/resized/80/cd7f6edd2c75afd3b7299917b3767c0f.png"
     group_id: str = None  # 1
+    id_in_org: str = None  # ''
     is_admin: bool = None  # true
     role: str = None  # "Owner
+    avatar_url: str = None  # "https://cloud.seatable.io/image-view/avatars/3/7/a0a57575a3ca0c78e8c5b6b0d0dbda/resized/80/cd7f6edd2c75afd3b7299917b3767c0f.png"
 
 
 class Base(_Model):

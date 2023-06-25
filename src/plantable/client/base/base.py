@@ -25,6 +25,8 @@ from ...model import (
     Table,
     Team,
     User,
+    UserInfo,
+    View,
     Webhook,
 )
 from ...schema.serde import DT_FMT, Sea2Py, to_str_datetime
@@ -55,7 +57,7 @@ class BaseClient(HttpClient):
     ################################################################
     # BASE INFO
     ################################################################
-    # get base info
+    # Get Base Info
     async def get_base_info(self):
         METHOD = "GET"
         URL = f"/dtable-server/dtables/{self.base_uuid}"
@@ -65,7 +67,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # get metadata
+    # Get Metadata
     async def get_metadata(self):
         METHOD = "GET"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/metadata/"
@@ -77,7 +79,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # (custom) list tables
+    # (custom) List Tables
     async def list_tables(self, model: BaseModel = Table):
         metadata = await self.get_metadata()
         tables = metadata["tables"]
@@ -87,7 +89,7 @@ class BaseClient(HttpClient):
 
         return tables
 
-    # (custom) get_table
+    # (custom) Get Table
     async def get_table(self, table_name: str):
         tables = await self.list_tables()
         for table in tables:
@@ -96,7 +98,39 @@ class BaseClient(HttpClient):
         else:
             raise KeyError()
 
-    # (custom) get_schema
+    # (custom) Get Table by ID
+    async def get_table_by_id(self, table_id: str):
+        tables = await self.list_tables()
+        for table in tables:
+            if table.id == table_id:
+                return table
+        else:
+            raise KeyError()
+
+    # Get Big Data Status
+    async def get_bigdata_status(self):
+        METHOD = "GET"
+        URL = f"/dtable-db/api/v1/base-info/{self.base_uuid}/"
+
+        async with self.session_maker(token=self.base_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL)
+
+        return results
+
+    # List Collaborators
+    async def list_collaborators(self, model: BaseModel = UserInfo):
+        METHOD = "GET"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/related-users/"
+        ITEM = "user_list"
+
+        async with self.session_maker(token=self.base_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response[ITEM]
+
+        if model:
+            results = [model(**x) for x in results]
+
+        return results
 
     # (custom) ls
     async def ls(self, table_name: str = None):
@@ -128,23 +162,10 @@ class BaseClient(HttpClient):
             ]
         print(tabulate(_tables, **TABULATE_CONF))
 
-    async def get_bigdata_status(self):
-        raise NotImplementedError
-
-    async def list_collaborators(self):
-        # base_uuid = dtable_uuid
-        METHOD = "GET"
-        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/related-users/"
-
-        async with self.session_maker(token=self.base_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL)
-
-        return results
-
     ################################################################
     # ROWS
     ################################################################
-    # (custom) query_df
+    # (custom) Query DataFrame
     async def query_df(
         self,
         table_name: str,
@@ -169,7 +190,7 @@ class BaseClient(HttpClient):
 
         return pd.DataFrame.from_records(records)
 
-    # (custom) query
+    # (custom) Query
     async def query(
         self,
         table_name: str,
@@ -205,13 +226,13 @@ class BaseClient(HttpClient):
             q = q.where(table[datetime_field] > datetime_after)
 
         # 1st hit
-        results = await self.sql_query(sql=q.offset(_offset))
+        results = await self.list_rows_with_sql(sql=q.offset(_offset))
 
         # get all records
         if not limit or len(results) < limit:
             while True:
                 _offset += LIMIT
-                _results = await self.sql_query(sql=q.offset(_offset))
+                _results = await self.list_rows_with_sql(sql=q.offset(_offset))
                 results += _results
                 if len(_results) < LIMIT:
                     break
@@ -222,8 +243,8 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] list rows (SQL)
-    async def sql_query(self, sql: Union[str, QueryBuilder], convert_keys: bool = True):
+    # List Rows (with SQL)
+    async def list_rows_with_sql(self, sql: Union[str, QueryBuilder], convert_keys: bool = True):
         """
         [NOTE]
          default LIMIT 100 when not LIMIT is given!
@@ -243,7 +264,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] list rows
+    # List Rows (View)
     async def list_rows(
         self,
         table_name: str,
@@ -288,13 +309,9 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] add row
+    # Add Row
     async def add_row(
-        self,
-        table_name: str,
-        row: dict,
-        anchor_row_id: str = None,
-        row_insert_position: str = "insert_below",
+        self, table_name: str, row: dict, anchor_row_id: str = None, row_insert_position: str = "insert_below"
     ):
         # insert_below or insert_above
         METHOD = "POST"
@@ -313,7 +330,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] update row
+    # Update Row
     async def update_row(self, table_name: str, row_id: str, row: dict):
         # NOT WORKING
         METHOD = "PUT"
@@ -327,7 +344,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] delete row
+    # Delete Row
     async def delete_row(self, table_name: str, row_id: str):
         METHOD = "DELETE"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/rows/"
@@ -338,7 +355,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] get row
+    # Get Row
     async def get_row(self, table_name: str, row_id: str, convert: bool = False):
         # NOT WORKING
         METHOD = "GET"
@@ -351,7 +368,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] append rows
+    # Append Rows
     async def append_rows(self, table_name: str, rows: List[dict]):
         # insert_below or insert_above
         METHOD = "POST"
@@ -363,7 +380,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] update rows
+    # Update Rows
     async def update_rows(self, table_name: str, updates: List[dict]):
         # updates = [{"row_id": xxx, "row": {"key": "value"}}, ...]
         METHOD = "PUT"
@@ -375,7 +392,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] delete rows
+    # Delete Rows
     async def delete_rows(self, table_name: str, row_ids: List[str]):
         METHOD = "DELETE"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/batch-delete-rows/"
@@ -386,7 +403,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] lock rows
+    # Rock Rows
     async def lock_rows(self, table_name: str, row_ids: List[str]):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/lock-rows/"
@@ -397,7 +414,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [ROWS] unlock rows
+    # Unrock Rows
     async def unlock_rows(self, table_name: str, row_ids: List[str]):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/unlock-rows/"
@@ -409,7 +426,7 @@ class BaseClient(HttpClient):
         return results
 
     ################################################################
-    # ROWS
+    # LINKS
     ################################################################
 
     ################################################################
@@ -419,7 +436,7 @@ class BaseClient(HttpClient):
     ################################################################
     # TABLES
     ################################################################
-    # [TABLES] create new table
+    # Create New Table
     async def create_new_table(self, table_name: str, columns: List[dict]):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/tables/"
@@ -430,7 +447,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [TABLES] rename table
+    # Rename Table
     async def rename_table(self, table_name: str, new_table_name: str):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/tables/"
@@ -441,7 +458,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [TABLES] delete table
+    # Delete Table
     async def delete_table(self, table_name: str):
         METHOD = "DELETE"
         URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/tables/"
@@ -452,7 +469,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # [TABLES] duplicate table
+    # Duplicate Table
     async def duplicate_table(self, table_name: str, is_duplicate_records: bool = True):
         # rename table in a second step
         METHOD = "POST"
@@ -465,8 +482,91 @@ class BaseClient(HttpClient):
         return results
 
     ################################################################
+    # IMPORT
+    ################################################################
+    # (DEPRECATED) Create Table from CSV
+
+    # (DEPRECATED) Append Rows from CSV
+
+    ################################################################
     # VIEWS
     ################################################################
+    # List Views
+    async def list_views(self, table_name: str, model: BaseModel = View):
+        METHOD = "GET"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/views/"
+        ITEM = "views"
+
+        async with self.session_maker(token=self.base_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, table_name=table_name)
+            results = response[ITEM]
+
+        if model:
+            results = [model(**x) for x in results]
+
+        return results
+
+    # Create View
+    async def create_view(
+        self, table_name: str, name: str, type: str = "table", is_locked: bool = False, model: BaseModel = View
+    ):
+        """
+        type: "table" or "archive" (bigdata)
+        """
+        METHOD = "POST"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/views/"
+        JSON = {
+            "name": name,
+            "type": type,
+            "is_locked": str(is_locked).lower(),
+        }
+
+        async with self.session_maker(token=self.base_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON, table_name=table_name)
+
+        if model:
+            results = model(**results)
+
+        return results
+
+    # Get View
+    async def get_view(self, table_name: str, view_name: str, model: BaseModel = View):
+        METHOD = "GET"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/views/{view_name}/"
+
+        async with self.session_maker(token=self.base_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, table_name=table_name)
+
+        if model:
+            results = model(**results)
+
+        return results
+
+    # Update View
+    # NOT TESTED!
+    async def update_view(self, table_name: str, view_name: str, conf: Union[dict, BaseModel] = None):
+        METHOD = "PUT"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/views/{view_name}/"
+
+        if isinstance(conf, BaseModel):
+            conf = conf.dict()
+
+        async with self.session_maker(token=self.base_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=conf, table_name=table_name)
+
+        return results
+
+    # Delete View
+    async def delete_view(self, table_name: str, view_name: str):
+        METHOD = "DELETE"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_uuid}/views/{view_name}/"
+        ITEM = "success"
+
+        async with self.session_maker(token=self.base_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, table_name=table_name)
+            results = response[ITEM]
+
+        return results
 
     ################################################################
     # COLUMNS

@@ -43,9 +43,11 @@ class UserClient(AccountClient):
     ################################################################
     # Helper
     ################################################################
-    async def get_base_client_with_account_token(self, workspace_name: str = None, base_name: str = None):
-        workspace_name, base_name = parse_name(workspace_name, base_name)
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+    async def get_base_client_with_account_token(
+        self, workspace_name_or_id: Union[str, int] = None, base_name: str = None
+    ):
+        workspace_name_or_id, base_name = parse_name(workspace_name_or_id, base_name)
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
         return await super().get_base_client_with_account_token(workspace_id=workspace.id, base_name=base_name)
 
     ################################################################
@@ -123,13 +125,13 @@ class UserClient(AccountClient):
     # [BASES] Create Base
     async def create_base(
         self,
-        workspace_name: str,
+        workspace_name_or_id: Union[str, int],
         base_name: str,
         icon: str = None,
         color: str = None,
         model: BaseModel = Base,
     ):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "POST"
         URL = f"/api/v2.1/dtables/"
@@ -150,14 +152,14 @@ class UserClient(AccountClient):
     # [BASES] update base
     async def update_base(
         self,
-        workspace_name: str,
+        workspace_name_or_id: Union[str, int],
         base_name: str,
         new_base_name: str = None,
         new_icon: str = None,
         new_color: str = None,
         model: BaseModel = Base,
     ):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "PUT"
         URL = f"/api/v2.1/workspace/{workspace.id}/dtable/"
@@ -178,8 +180,8 @@ class UserClient(AccountClient):
 
     # [BASES] delete base
     # NOT WORKING
-    async def delete_base(self, workspace_name: str):
-        workspace = await self.get_workspace(workspace_name)
+    async def delete_base(self, workspace_name_or_id: Union[str, int]):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "DELETE"
         URL = f"/api/v2.1/workspace/{workspace.id}/dtable/"
@@ -316,24 +318,28 @@ class UserClient(AccountClient):
     # (CUSTOM) LS & GET
     ################################################################
     # (custom) get
-    async def get(self, workspace_name: str, base_name: str = None, table_name: str = None):
-        workspace_name, base_name, table_name = parse_name(workspace_name, base_name, table_name)
+    async def get(self, workspace_name_or_id: str, base_name: str = None, table_name: str = None):
+        workspace_name_or_id, base_name, table_name = parse_name(workspace_name_or_id, base_name, table_name)
 
         if table_name:
-            bc = await self.get_base_client_with_account_token(workspace_name=workspace_name, base_name=base_name)
+            bc = await self.get_base_client_with_account_token(
+                workspace_name_or_id=workspace_name_or_id, base_name=base_name
+            )
             return await bc.get_table(table_name=table_name)
         if base_name:
-            return await self.get_base(workspace_name=workspace_name, base_name=base_name)
-        return await self.get_workspace(workspace_name=workspace_name)
+            return await self.get_base(workspace_name_or_id=workspace_name_or_id, base_name=base_name)
+        return await self.get_workspace(name_or_id=workspace_name_or_id)
 
     # (custom) ls
-    async def ls(self, workspace_name: str = None, base_name: str = None, table_name: str = None):
+    async def ls(self, workspace_name_or_id: str = None, base_name: str = None, table_name: str = None):
         # correct names
-        workspace_name, base_name, table_name = parse_name(workspace_name, base_name, table_name)
+        workspace_name_or_id, base_name, table_name = parse_name(workspace_name_or_id, base_name, table_name)
 
         # coros
-        async def _get_records(workspace_name, base_name):
-            bc = await self.get_base_client_with_account_token(workspace_name=workspace_name, base_name=base_name)
+        async def _get_records(workspace_name_or_id, base_name):
+            bc = await self.get_base_client_with_account_token(
+                workspace_name_or_id=workspace_name_or_id, base_name=base_name
+            )
             tables = await bc.list_tables()
             return {
                 "base_uuid": base.uuid,
@@ -342,14 +348,14 @@ class UserClient(AccountClient):
             }
 
         # ls workspaces
-        if not workspace_name:
+        if not workspace_name_or_id:
             workspaces = await self.list_workspaces(detail=True, model=Workspace)
             records = [x.to_record() for x in workspaces]
             self.print(records=records)
             return
 
         # ls bases
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
         if not base_name:
             list_bases = list()
             if workspace.shared_bases:
@@ -364,37 +370,20 @@ class UserClient(AccountClient):
             return
 
         # ls tables
-        bc = await self.get_base_client_with_account_token(workspace_name=workspace_name, base_name=base_name)
+        bc = await self.get_base_client_with_account_token(
+            workspace_name_or_id=workspace_name_or_id, base_name=base_name
+        )
         await bc.ls(table_name=table_name)
-
-    # [GROUPS & WORKSPACES] search group members
-    # NOT WORKING
-    async def search_group_members(
-        self, group_name: str, query: str = None, model: BaseModel = UserInfo
-    ) -> List[UserInfo]:
-        group = await self.get_workspace(group_name=group_name)
-
-        METHOD = "GET"
-        URL = f"/api/v2.1/groups/{group.id}/search-member/"
-        PARAMS = {"q": query}
-
-        async with self.session_maker(token=self.account_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
-
-        if model:
-            results = [model(**x) for x in results]
-
-        return results
 
     # [GROUPS & WORKSPACES] copy base from workspace
     async def copy_base_from_workspace(
         self,
-        src_workspace_name: str,
+        src_workspace_name_or_id: str,
         src_base_name: str,
-        dst_workspace_name: str,
+        dst_workspace_name_or_id: str,
     ) -> dict:
-        src_workspace = await self.get_workspace(workspace_name=src_workspace_name)
-        dst_workspace = await self.get_workspace(workspace_name=dst_workspace_name)
+        src_workspace = await self.get_workspace(workspace_name_or_id=src_workspace_name_or_id)
+        dst_workspace = await self.get_workspace(workspace_name_or_id=dst_workspace_name_or_id)
 
         METHOD = "POST"
         URL = f"/api/v2.1/dtable-copy/"
@@ -438,9 +427,11 @@ class UserClient(AccountClient):
     ################################################################
     # IMPORT & EXPORT
     ################################################################
-    # [IMPORT & EXPORT] import base from xlsx or csv
-    async def import_base_from_xlsx_or_csv(self, workspace_name: str, file: bytes, folder_id: int = None):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+    # Import Base from xlsx or csv
+    async def import_base_from_xlsx_or_csv(
+        self, workspace_name_or_id: Union[str, int], file: bytes, folder_id: int = None
+    ):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "POST"
         URL = f"/api/v2.1/workspace/{workspace.id}/synchronous-import/import-excel-csv-to-base/"
@@ -448,30 +439,27 @@ class UserClient(AccountClient):
 
         raise NotImplementedError
 
-    # [IMPORT & EXPORT] import table from xlsx or csv
-    async def import_table_from_xlsx_or_csv(self, workspace_name: str, file: bytes, base_uuid: str, table_name: str):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+    # Import Table from xlsx or csv
+    async def import_table_from_xlsx_or_csv(
+        self, workspace_name_or_id: Union[str, int], file: bytes, base_uuid: str, table_name: str
+    ):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "POST"
         URL = f"/api/v2.1/workspace/{workspace.id}/synchronous-import/import-excel-csv-to-table/"
-        JSON = {
-            "workspace_id": workspace.id,
-            "file": file,
-            "dtable_uuid": base_uuid,
-            "table_name": table_name,
-        }
+        JSON = {"workspace_id": workspace.id, "file": file, "dtable_uuid": base_uuid, "table_name": table_name}
         raise NotImplementedError
 
-    # [IMPORT & EXPORT] update table from xlsx or csv
+    # Update Table from xlsx or csv
     async def update_base_from_xlsx_or_csv(
         self,
-        workspace_name: str,
+        workspace_name_or_id: Union[str, int],
         file: bytes,
         base_uuid: str,
         table_name: str,
         selected_columns: List[str],
     ):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "POST"
         URL = f"/api/v2.1/workspace/{workspace.id}/synchronous-import/update-table-via-excel-csv/"
@@ -484,10 +472,10 @@ class UserClient(AccountClient):
         }
         raise NotImplementedError
 
-    # [IMPORT & EXPORT] export base
+    # Export Base
     # NOT WORKING
-    async def export_base(self, workspace_name: str, base_name: str):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+    async def export_base(self, workspace_name_or_id: Union[str, int], base_name: str):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace.id}/synchronous-export/export-dtable/"
@@ -498,15 +486,15 @@ class UserClient(AccountClient):
 
         return response
 
-    # [IMPORT & EXPORT] export table
+    # export table
     async def export_table(
         self,
-        workspace_name: str,
+        workspace_name_or_id: Union[str, int],
         base_name: str,
         table_id: int,
         table_name: str,
     ):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace.id}/synchronous-export/export-table-to-excel/"
@@ -521,7 +509,7 @@ class UserClient(AccountClient):
 
         return response
 
-    # [IMPORT & EXPORT] (custom) export_table
+    # (custom) export_table
     async def export_table_by_name(self, group_name: str, base_name: str, table_name: str):
         pass
 
@@ -584,8 +572,8 @@ class UserClient(AccountClient):
     # WEBHOOKS
     ################################################################
     # [WEBHOOKS] list webhooks
-    async def list_webhooks(self, workspace_name: str, base_name: str, model: BaseModel = Webhook):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+    async def list_webhooks(self, workspace_name_or_id: Union[str, int], base_name: str, model: BaseModel = Webhook):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace.id}/dtable/{base_name}/webhooks/"
@@ -603,13 +591,13 @@ class UserClient(AccountClient):
     # [WEBHOOKS] create webhook
     async def create_webhook(
         self,
-        workspace_name: str,
+        workspace_name_or_id: Union[str, int],
         base_name: str,
         url: str,
         secret: int = 0,
         model: BaseModel = Webhook,
     ):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "POST"
         URL = f"/api/v2.1/workspace/{workspace.id}/dtable/{base_name}/webhooks/"
@@ -628,13 +616,13 @@ class UserClient(AccountClient):
     # [WEBHOOKS] update webhook
     async def update_webhook(
         self,
-        workspace_name: str,
+        workspace_name_or_id: Union[str, int],
         base_name: str,
         webhook_id: str,
         url: str,
         secret: int = None,
     ):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "PUT"
         URL = f"/api/v2.1/workspace/{workspace.id}/dtable/{base_name}/webhooks/{webhook_id}/"
@@ -645,8 +633,8 @@ class UserClient(AccountClient):
             print(response)
 
     # [WEBHOOKS] delete webhook
-    async def delete_webhook(self, workspace_name: str, base_name: str, webhook_id: str):
-        workspace = await self.get_workspace(workspace_name=workspace_name)
+    async def delete_webhook(self, workspace_name_or_id: Union[str, int], base_name: str, webhook_id: str):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "DELETE"
         URL = f"/api/v2.1/workspace/{workspace.id}/dtable/{base_name}/webhooks/{webhook_id}/"

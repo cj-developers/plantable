@@ -652,6 +652,18 @@ class UserClient(AccountClient):
 
         return results
 
+    # Create Group Share
+    async def create_group_share(self):
+        raise NotImplementedError
+
+    # Update Group Share
+    async def create_group_share(self):
+        raise NotImplementedError
+
+    # Update Group Share
+    async def create_group_share(self):
+        raise NotImplementedError
+
     ################################################################
     # SHARING LINKS
     ################################################################

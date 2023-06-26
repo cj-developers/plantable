@@ -46,7 +46,6 @@ class UserClient(AccountClient):
     async def get_base_client_with_account_token(
         self, workspace_name_or_id: Union[str, int] = None, base_name: str = None
     ):
-        workspace_name_or_id, base_name = parse_name(workspace_name_or_id, base_name)
         workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
         return await super().get_base_client_with_account_token(workspace_id=workspace.id, base_name=base_name)
 
@@ -106,8 +105,8 @@ class UserClient(AccountClient):
     ################################################################
     # BASE
     ################################################################
-    # [BASES] list bases user can admin
-    async def list_bases(self, model: BaseModel = Base):
+    # List Bases User Can Administer
+    async def list_bases(self) -> dict:
         METHOD = "GET"
         URL = "/api/v2.1/user-admin-dtables/"
 
@@ -115,14 +114,39 @@ class UserClient(AccountClient):
             response = await self.request(session=session, method=METHOD, url=URL)
             results = response
 
-        if model:
-            results["personal"] = [model(**x) for x in results["personal"]]
-            for group in results["groups"]:
-                group["dtables"] = [model(**x) for x in group["dtables"]]
-
         return results
 
-    # [BASES] Create Base
+    # (custom) list_personal_bases
+    async def list_personal_bases(self, model: BaseModel = Base) -> List[Base]:
+        results = await self.list_bases()
+        personal_bases = results["personal"]
+
+        if model:
+            personal_bases = [model(**x) for x in personal_bases]
+
+        return personal_bases
+
+    # (custom) list_group_bases
+    async def list_group_bases(self, group_name_or_id: Union[str, str] = None, model: BaseModel = Base) -> List[Base]:
+        results = await self.list_bases()
+        groups = results["groups"]
+
+        if model:
+            for group in groups:
+                group["dtables"] = [model(**x) for x in group["dtables"]]
+
+        if group_name_or_id:
+            for group in groups:
+                if isinstance(group_name_or_id, str) and group["group_name"] == group_name_or_id:
+                    return group["dtables"]
+                if isinstance(group_name_or_id, int) and group["group_id"] == group_name_or_id:
+                    return group["dtables"]
+            else:
+                raise KeyError
+
+        return groups
+
+    # Create Base
     async def create_base(
         self,
         workspace_name_or_id: Union[str, int],
@@ -149,7 +173,7 @@ class UserClient(AccountClient):
 
         return results
 
-    # [BASES] update base
+    # update base
     async def update_base(
         self,
         workspace_name_or_id: Union[str, int],
@@ -178,7 +202,7 @@ class UserClient(AccountClient):
 
         return results
 
-    # [BASES] delete base
+    # delete base
     # NOT WORKING
     async def delete_base(self, workspace_name_or_id: Union[str, int]):
         workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
@@ -193,7 +217,7 @@ class UserClient(AccountClient):
 
         return results
 
-    # [BASES] get base activities
+    # get base activities
     async def get_base_activities(self, model: BaseModel = Activity):
         METHOD = "GET"
         URL = "/api/v2.1/dtable-activities/"
@@ -208,7 +232,7 @@ class UserClient(AccountClient):
 
         return results
 
-    # [BASES] list_favorites
+    # list_favorites
     async def list_favorites(self, model: BaseModel = BaseInfo):
         METHOD = "GET"
         URL = "/api/v2.1/starred-dtables/"
@@ -223,7 +247,7 @@ class UserClient(AccountClient):
 
         return results
 
-    # [BASES] favorite base
+    # favorite base
     async def favorite_base(self, base: Base):
         METHOD = "POST"
         URL = "/api/v2.1/starred-dtables/"
@@ -236,7 +260,7 @@ class UserClient(AccountClient):
 
         return results
 
-    # [BASES] unfavorite base
+    # unfavorite base
     async def unfavorite_base(self, base: Base):
         METHOD = "DELETE"
         URL = "/api/v2.1/starred-dtables/"
@@ -249,7 +273,7 @@ class UserClient(AccountClient):
 
         return results
 
-    # [BASES] (custom) get base by name
+    # (custom) get base by name
     async def get_base(self, workspace_name: str, base_name: str):
         results = await self.list_bases()
 
@@ -272,8 +296,8 @@ class UserClient(AccountClient):
     ################################################################
     # GROUPS & WORKSPACES
     ################################################################
-    # [GROUPS & WORKSPACES] list workspaces
-    async def list_workspaces(self, detail: bool = True, incl: List[str] = None, model: BaseModel = Workspace) -> dict:
+    # List Workspaces
+    async def list_workspaces(self, detail: bool = True) -> List[dict]:
         """
         incl: "personal" or "group"
         """
@@ -286,33 +310,65 @@ class UserClient(AccountClient):
             response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
             results = response[ITEM]
 
-        if incl:
-            incl = incl if isinstance(incl, list) else [incl]
-            results = [x for x in results if x["type"] in incl]
-
-        if model:
-            # [NOTE]
-            # shared는 데이터 형식이 다르기 때문에 별도 method 사용, 여기서는 ignore
-            results = [x for x in results if x["type"] != "shared"]
-            results = [model(**x) for x in results]
-
         return results
 
-    # [GROUPS & WORKSPACES] get workspace
-    async def get_workspace(self, name_or_id: Union[str, int], workspace_type: str = "group"):
-        """
-        workspace_type: "group", "personal", "starred", or "shared"
-        """
-        workspaces = await self.list_workspaces(detail=True, model=Workspace)
+    # (custom) List Groups
+    async def list_groups(self, model: BaseModel = Workspace):
+        workspaces = await self.list_workspaces()
+        groups = [x for x in workspaces if x["type"] == "group"]
+
+        if model:
+            groups = [model(**x) for x in groups]
+
+        return groups
+
+    # (custom) Get Workspace
+    async def get_workspace(
+        self, name_or_id: Union[str, int], workspace_type: str = "group", model: BaseModel = Workspace
+    ):
+        workspaces = await self.list_workspaces(detail=True)
         for workspace in workspaces:
-            if workspace_type and workspace.type != workspace_type:
+            if workspace_type and workspace["type"] != workspace_type:
                 continue
-            if isinstance(name_or_id, str) and workspace.name == name_or_id:
-                return workspace
-            if isinstance(name_or_id, int) and workspace.id == name_or_id:
-                return workspace
+            if name_or_id in [workspace["name"], workspace["id"]]:
+                break
         else:
             raise KeyError()
+
+        if model:
+            workspace = model(**workspace)
+
+        return workspace
+
+    # (custom) Get Personal Workspace
+    async def get_personal_workspace(self, model: BaseModel = Workspace):
+        workspaces = await self.list_workspaces()
+        for workspace in workspaces:
+            if workspace["type"] == "personal":
+                break
+        else:
+            raise KeyError
+
+        if model:
+            workspace = model(**workspace)
+
+        return workspace
+
+    # (custom) Get Group
+    async def get_group(self, group_name_or_id: Union[str, int], model: BaseModel = Workspace):
+        workspaces = await self.list_workspaces()
+        for workspace in workspaces:
+            if workspace["type"] != "group":
+                continue
+            if group_name_or_id in [workspace["name"], workspace["group_id"]]:
+                break
+        else:
+            raise KeyError
+
+        if model:
+            workspace = model(**workspace)
+
+        return workspace
 
     ################################################################
     # (CUSTOM) LS & GET
@@ -375,7 +431,7 @@ class UserClient(AccountClient):
         )
         await bc.ls(table_name=table_name)
 
-    # [GROUPS & WORKSPACES] copy base from workspace
+    # copy base from workspace
     async def copy_base_from_workspace(
         self,
         src_workspace_name_or_id: str,
@@ -400,7 +456,7 @@ class UserClient(AccountClient):
 
         return results
 
-    # [GROUPS & WORKSPACES] copy base from external link
+    # copy base from external link
     async def copy_base_from_external_link(
         self,
         link: str,
@@ -516,11 +572,79 @@ class UserClient(AccountClient):
     ################################################################
     # SHARING
     ################################################################
+    # My Shares
+    async def list_tables_shared_to_me(self):
+        METHOD = "GET"
+        URL = "/api/v2.1/dtables/shared/"
+        ITEM = "table_list"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response[ITEM]
+
+        return results
+
     # My User View Shares
-    async def list_shared_views(self):
+    async def list_views_shared_to_me(self):
         METHOD = "GET"
         URL = "/api/v2.1/dtables/view-shares-user-shared/"
         ITEM = "view_share_list"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response[ITEM]
+
+        return results
+
+    # List User Shares
+    async def list_users_share_base(
+        self, workspace_name_or_id: Union[str, int], base_name: str, model: BaseModel = UserInfo
+    ):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
+
+        METHOD = "GET"
+        URL = f"/api/v2.1/workspace/{workspace.id}/dtable/{base_name}/share/"
+        ITEM = "user_list"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response[ITEM]
+
+        if model:
+            results = [model(**x) for x in results]
+
+        return results
+
+    # Create User Share
+    async def create_user_share(self):
+        raise NotImplementedError
+
+    # Update User Share
+    async def update_user_share(self):
+        raise NotImplementedError
+
+    # Delete User Share
+    async def delete_user_share(self):
+        raise NotImplementedError
+
+    # My Group Shares
+    async def list_tables_shared_to_my_groups(self) -> List[dict]:
+        METHOD = "GET"
+        URL = "/api/v2.1/dtables/group-shared/"
+        ITEM = "group_shared_dtables"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response[ITEM]
+
+        return results
+
+    # List Group Shares
+    async def list_tables_shared_to_group(self, workspace_name_or_id: Union[str, int], base_name: str):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
+        METHOD = "GET"
+        URL = f"/api/v2.1/workspace/{workspace.id}/dtable/{base_name}/group-shares/"
+        ITEM = "dtable_group_share_list"
 
         async with self.session_maker(token=self.account_token) as session:
             response = await self.request(session=session, method=METHOD, url=URL)

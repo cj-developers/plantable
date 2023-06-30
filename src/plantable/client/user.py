@@ -8,8 +8,8 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ...conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
-from ...model import (
+from ..conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
+from ..model import (
     DTABLE_ICON_COLORS,
     DTABLE_ICON_LIST,
     AccountInfo,
@@ -28,8 +28,8 @@ from ...model import (
     Webhook,
     Workspace,
 )
-from ..base import BaseClient
-from ..core import TABULATE_CONF, HttpClient, parse_name
+from .base import BaseClient
+from .core import TABULATE_CONF, HttpClient, parse_name
 from .account import AccountClient
 from .admin import AdminClient
 

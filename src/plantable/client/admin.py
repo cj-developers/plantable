@@ -334,9 +334,9 @@ class AdminClient(AccountClient):
         else:
             raise KeyError
 
-    # (Admin) Update Group
+    # (Admin) Transfer Group
     # [NOTE] new_group_name으로 안 바뀌어서 Forum에 문의 중
-    async def update_group(self, name_or_id: Union[str, int], new_owner: str = None, new_group_name: str = None):
+    async def transfer_group(self, name_or_id: Union[str, int], owner: str = None, name: str = None):
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
             name_or_id = group.id
@@ -344,8 +344,8 @@ class AdminClient(AccountClient):
         METHOD = "PUT"
         URL = f"/api/v2.1/admin/groups/{name_or_id}/"
         DATA = aiohttp.FormData()
-        _ = DATA.add_field("new_owner", new_owner) if new_owner else None
-        _ = DATA.add_field("new_group_name", new_group_name) if new_group_name else None
+        _ = DATA.add_field("owner", owner) if owner else None
+        _ = DATA.add_field("name", name) if name else None
 
         async with self.session_maker(token=self.account_token) as session:
             results = await self.request(session=session, method=METHOD, url=URL, data=DATA)

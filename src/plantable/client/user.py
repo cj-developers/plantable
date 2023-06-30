@@ -8,8 +8,8 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ..conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
-from ..model import (
+from ...conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
+from ...model import (
     DTABLE_ICON_COLORS,
     DTABLE_ICON_LIST,
     AccountInfo,
@@ -21,7 +21,6 @@ from ..model import (
     BaseToken,
     Column,
     File,
-    SharedView,
     Table,
     Team,
     User,
@@ -29,8 +28,8 @@ from ..model import (
     Webhook,
     Workspace,
 )
-from .base import BaseClient
-from .core import TABULATE_CONF, HttpClient, parse_name
+from ..base import BaseClient
+from ..core import TABULATE_CONF, HttpClient, parse_name
 from .account import AccountClient
 from .admin import AdminClient
 
@@ -47,10 +46,7 @@ class UserClient(AccountClient):
     async def get_base_client_with_account_token(
         self, workspace_name_or_id: Union[str, int] = None, base_name: str = None
     ):
-        if isinstance(workspace_name_or_id, str):
-            workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
-            workspace_name_or_id = workspace.id
-
+        workspace_name_or_id, base_name = parse_name(workspace_name_or_id, base_name)
         workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
         return await super().get_base_client_with_account_token(workspace_id=workspace.id, base_name=base_name)
 
@@ -303,14 +299,13 @@ class UserClient(AccountClient):
         return results
 
     # [GROUPS & WORKSPACES] get workspace
-    async def get_workspace(self, name_or_id: Union[str, int], workspace_types: List[str] = ["personal", "group"]):
+    async def get_workspace(self, name_or_id: Union[str, int], workspace_type: str = "group"):
         """
         workspace_type: "group", "personal", "starred", or "shared"
         """
         workspaces = await self.list_workspaces(detail=True, model=Workspace)
-
         for workspace in workspaces:
-            if workspace_types and workspace.type not in workspace_types:
+            if workspace_type and workspace.type != workspace_type:
                 continue
             if isinstance(name_or_id, str) and workspace.name == name_or_id:
                 return workspace
@@ -324,6 +319,8 @@ class UserClient(AccountClient):
     ################################################################
     # (custom) get
     async def get(self, workspace_name_or_id: str, base_name: str = None, table_name: str = None):
+        workspace_name_or_id, base_name, table_name = parse_name(workspace_name_or_id, base_name, table_name)
+
         if table_name:
             bc = await self.get_base_client_with_account_token(
                 workspace_name_or_id=workspace_name_or_id, base_name=base_name
@@ -335,6 +332,9 @@ class UserClient(AccountClient):
 
     # (custom) ls
     async def ls(self, workspace_name_or_id: str = None, base_name: str = None, table_name: str = None):
+        # correct names
+        workspace_name_or_id, base_name, table_name = parse_name(workspace_name_or_id, base_name, table_name)
+
         # coros
         async def _get_records(workspace_name_or_id, base_name):
             bc = await self.get_base_client_with_account_token(
@@ -517,7 +517,7 @@ class UserClient(AccountClient):
     # SHARING
     ################################################################
     # My User View Shares
-    async def list_shared_views(self, model: BaseModel = SharedView):
+    async def list_shared_views(self):
         METHOD = "GET"
         URL = "/api/v2.1/dtables/view-shares-user-shared/"
         ITEM = "view_share_list"
@@ -525,9 +525,6 @@ class UserClient(AccountClient):
         async with self.session_maker(token=self.account_token) as session:
             response = await self.request(session=session, method=METHOD, url=URL)
             results = response[ITEM]
-
-        if model:
-            results = [model(**x) for x in results]
 
         return results
 

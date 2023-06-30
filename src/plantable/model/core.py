@@ -202,6 +202,7 @@ class User(_Model):
     is_staff: bool  # True
     is_active: bool  # True
     role: str = None  # 'default'
+    permission: str = None  # "r" or "rw"
     workspace_id: int = None  # 1
     create_time: datetime  # '2023-05-21T03:04:26+00:00'
     last_login: datetime = None  # '2023-05-28T11:42:01+00:00'
@@ -225,6 +226,7 @@ class UserInfo(_Model):
     id_in_org: str = None  # ''
     is_admin: bool = None  # true
     role: str = None  # "Owner
+    permission: str = None  # "r" or "rw"
     avatar_url: str = None  # "https://cloud.seatable.io/image-view/avatars/3/7/a0a57575a3ca0c78e8c5b6b0d0dbda/resized/80/cd7f6edd2c75afd3b7299917b3767c0f.png"
 
 

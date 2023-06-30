@@ -8,7 +8,7 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ...conf import (
+from ..conf import (
     SEATABLE_ACCOUNT_TOKEN,
     SEATABLE_API_TOKEN,
     SEATABLE_BASE_TOKEN,
@@ -16,7 +16,7 @@ from ...conf import (
     SEATABLE_URL,
     SEATABLE_USERNAME,
 )
-from ...model import (
+from ..model import (
     DTABLE_ICON_COLORS,
     DTABLE_ICON_LIST,
     Admin,
@@ -29,8 +29,8 @@ from ...model import (
     User,
     Webhook,
 )
-from ..base import BaseClient
-from ..core import TABULATE_CONF, HttpClient
+from .base import BaseClient
+from .core import TABULATE_CONF, HttpClient
 
 logger = logging.getLogger()
 

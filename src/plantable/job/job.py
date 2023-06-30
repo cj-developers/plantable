@@ -1,55 +1,26 @@
-from ..client import AccountClient
+# class BaseClientGenerator:
+#     def __init__(self, admin_client):
+#         self.admin_client = admin_client
 
-REF_TABLE = "test_api"
+#         # Stores
+#         self.bases = None
+#         self.groups = None
 
+#     async def update(self):
+#         self.bases = await self.admin_client.list_bases()
+#         self.map_wid_gid = {x.workspace_id: x.group_id for x in self.bases}
 
-async def update_ref_table(
-    client: AccountClient,
-    ref_group_name: str = "GROUP_ADMIN",
-    ref_base_name: str = "task",
-    ref_table_name: str = "base",
-):
-    # ref client
-    ref_base = await client.get_base_by_name(
-        group_name=ref_group_name, base_name=ref_base_name
-    )
-    ref_base_client = await client.get_base_client(base=ref_base)
+#     async def from_shared_view(self, shared_view):
+#         return await self.__call__(
+#             workspace_id=shared_view.workspace_id,
+#             base_name=shared_view.dtable_name,
+#         )
 
-    # create base if not exists
-
-    # list bases and update ref table
-    bases = await client.list_bases()
-    rows = list()
-    updates = list()
-    for base in bases:
-        r = base.to_record()
-        old = await ref_base_client.query(
-            f"SELECT * FROM {ref_table_name} WHERE base_uuid = '{base.uuid}'"
-        )
-        if not old:
-            rows.append(r)
-            continue
-        if len(old) > 1:
-            raise
-        updates.append({"row_id": old[0]["_id"], "row": r})
-    if rows:
-        results = await ref_base_client.append_rows(
-            table_name=ref_table_name, rows=rows
-        )
-        print(results)
-    if updates:
-        results = await ref_base_client.update_rows(
-            table_name=ref_table_name, updates=updates
-        )
-        print(updates)
-        print(results)
-
-    # check deleted
-    bases_in_ref_table = await ref_base_client.query(f"SELECT * FROM {ref_table_name}")
-    deleted_bases = [
-        x for x in bases_in_ref_table if x["base_uuid"] not in [y.uuid for y in bases]
-    ]
-    if deleted_bases:
-        await ref_base_client.delete_rows(
-            table_name=ref_table_name, row_ids=[x["_id"] for x in deleted_bases]
-        )
+#     async def __call__(self, workspace_id, base_name):
+#         if self.bases is None:
+#             await self.update()
+#         group_id = self.map_wid_gid[workspace_id]
+#         return await self.admin_client.get_base_client_with_account_token(
+#             group_name_or_id=group_id,
+#             base_name=base_name,
+#         )

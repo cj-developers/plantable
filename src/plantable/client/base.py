@@ -12,8 +12,8 @@ from pypika import Table as PikaTable
 from pypika.dialects import QueryBuilder
 from tabulate import tabulate
 
-from ...conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
-from ...model import (
+from ..conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
+from ..model import (
     DTABLE_ICON_COLORS,
     DTABLE_ICON_LIST,
     Admin,
@@ -29,9 +29,9 @@ from ...model import (
     View,
     Webhook,
 )
-from ...schema.serde import DT_FMT, Sea2Py, to_str_datetime
-from ..core import TABULATE_CONF, HttpClient
-from ..exception import MoreRows
+from ..schema.serde import DT_FMT, Sea2Py, to_str_datetime
+from .core import TABULATE_CONF, HttpClient
+from .exception import MoreRows
 
 logger = logging.getLogger()
 
@@ -106,6 +106,18 @@ class BaseClient(HttpClient):
                 return table
         else:
             raise KeyError()
+
+    # (custom) Get View by ID
+    async def get_names_by_ids(self, table_id: str, view_id: str):
+        table = await self.get_table_by_id(table_id=table_id)
+        views = await self.list_views(table_name=table.name)
+        for view in views:
+            if view.id == view_id:
+                break
+        else:
+            raise KeyError
+
+        return {"table_name": table.name, "view_name": view.name}
 
     # Get Big Data Status
     async def get_bigdata_status(self):

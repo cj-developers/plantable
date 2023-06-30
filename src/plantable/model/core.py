@@ -13,6 +13,7 @@ __all__ = [
     "File",
     "Table",
     "View",
+    "SharedView",
     "User",
     "UserInfo",
     "Base",
@@ -153,6 +154,23 @@ class View(_Model):
     colors: dict = None  # {}
     column_colors: dict = None  # {}
     groups: List[str] = None  # []
+
+
+class SharedView(_Model):
+    id: int
+    shared_name: str
+    workspace_id: int
+    dtable_name: str
+    table_id: str  # '0000'
+    view_id: str  # '0000'
+    from_user: str
+    to_user: str
+    from_user_name: str
+    to_user_name: str
+    permission: str
+    color: str = None
+    text_color: str = None
+    icon: str = None
 
 
 class Table(_Model):

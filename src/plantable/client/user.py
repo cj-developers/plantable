@@ -528,6 +528,69 @@ class UserClient(AccountClient):
 
         return results
 
+<<<<<<< HEAD:src/plantable/client/user.py
+=======
+    # List User Shares
+    async def list_users_share_base(
+        self, workspace_name_or_id: Union[str, int], base_name: str, model: BaseModel = UserInfo
+    ):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
+
+        METHOD = "GET"
+        URL = f"/api/v2.1/workspace/{workspace.id}/dtable/{base_name}/share/"
+        ITEM = "user_list"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response[ITEM]
+
+        if model:
+            results = [model(**x) for x in results]
+
+        return results
+
+    # Create User Share
+    async def create_user_share(self):
+        raise NotImplementedError
+
+    # Update User Share
+    async def update_user_share(self):
+        raise NotImplementedError
+
+    # Delete User Share
+    async def delete_user_share(self):
+        raise NotImplementedError
+
+    # My Group Shares
+    async def list_tables_shared_to_my_groups(self) -> List[dict]:
+        METHOD = "GET"
+        URL = "/api/v2.1/dtables/group-shared/"
+        ITEM = "group_shared_dtables"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response[ITEM]
+
+        return results
+
+    # List Group Shares
+    async def list_tables_shared_to_group(self, workspace_name_or_id: Union[str, int], base_name: str):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
+        METHOD = "GET"
+        URL = f"/api/v2.1/workspace/{workspace.id}/dtable/{base_name}/group-shares/"
+        ITEM = "dtable_group_share_list"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response[ITEM]
+
+        return results
+
+    # Create Group Share
+    async def create_group_share(self):
+        raise NotImplementedError
+
+>>>>>>> fedf3b5 (under dev.):src/plantable/client/account/user.py
     ################################################################
     # SHARING LINKS
     ################################################################

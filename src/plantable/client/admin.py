@@ -665,3 +665,21 @@ class AdminClient(AccountClient):
             _ = await self.add_group_members(name_or_id=group_name_or_id, user_emails=[me])
         workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
         return await super().get_base_client_with_account_token(workspace_id=workspace_id, base_name=base_name)
+
+    ################################################################
+    # LOGS
+    ################################################################
+    # List Email Logs
+    async def list_email_logs(self):
+        raise NotImplementedError
+
+    # List Registration Logs
+    async def list_registration_logs(self):
+        METHOD = "GET"
+        URL = "/api/v2.1/admin/registration-logs"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response
+
+        return results

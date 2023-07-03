@@ -188,6 +188,7 @@ class BaseClient(HttpClient):
         limit: int = None,
         offset: int = 0,
         incl_sys_cols: bool = True,
+        index_orient: bool = True,
     ) -> pd.DataFrame:
         records = await self.query(
             table_name=table_name,
@@ -198,9 +199,17 @@ class BaseClient(HttpClient):
             limit=limit,
             offset=offset,
             incl_sys_cols=incl_sys_cols,
+            index_orient=index_orient,
         )
 
-        return pd.DataFrame.from_records(records)
+        if index_orient:
+            return pd.DataFrame.from_dict(records, orient="index")
+        return pd.DataFrame.from_records(records, orient="index")
+
+    # (custom) Query Key Map
+    async def query_key_map(self, table_name: str, key_column: str):
+        results = await self.query(table_name=table_name, columns=[key_column])
+        return {v[key_column]: k for k, v in results.items()}
 
     # (custom) Query
     async def query(
@@ -212,22 +221,22 @@ class BaseClient(HttpClient):
         datetime_after: str = None,
         limit: int = None,
         offset: int = 0,
-        incl_sys_cols: bool = True,
+        incl_sys_cols: bool = False,
     ) -> List[dict]:
         LIMIT = 100
         OFFSET = 0
 
         # correct args
         table = PikaTable(table_name)
-        columns = (
-            "*"
-            if not columns
-            else ", ".join(columns if isinstance(columns, list) else [c.strip() for c in columns.split(",")])
-        )
+        if columns:
+            if "_id" not in columns:
+                columns.append("_id")
+        else:
+            columns = ["*"]
         _limit = min(LIMIT, limit) if limit else limit
         _offset = offset if offset else OFFSET
 
-        q = PikaQuery.from_(table).select(*columns).limit(_limit or LIMIT)
+        q = PikaQuery.from_(table).select(*columns)
         if datetime_before:
             if isinstance(datetime_before, datetime):
                 datetime_before = to_str_datetime(datetime_before)
@@ -236,6 +245,7 @@ class BaseClient(HttpClient):
             if isinstance(datetime_after, datetime):
                 datetime_after = to_str_datetime(datetime_after)
             q = q.where(table[datetime_field] > datetime_after)
+        q = q.limit(_limit or LIMIT)
 
         # 1st hit
         results = await self.list_rows_with_sql(sql=q.offset(_offset))
@@ -252,6 +262,7 @@ class BaseClient(HttpClient):
         table_info = await self.get_table(table_name)
         deserialize = Sea2Py(table_info=table_info, incl_sys_cols=incl_sys_cols)
         results = [deserialize(r) for r in results]
+        results = {r["_id"]: {k: v for k, v in r.items() if k != "_id"} for r in results}
 
         return results
 
@@ -403,6 +414,11 @@ class BaseClient(HttpClient):
             results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
         return results
+
+    # (custom) Upsert Rows
+    async def upsert_rows(self, table_name: str, rows: List[dict], key_column: str):
+        key_map = await self.query_key_map(table_name=table_name, key_column=key_column)
+        # [TODO!]
 
     # Delete Rows
     async def delete_rows(self, table_name: str, row_ids: List[str]):

@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from typing import Any, List, Union
-
+from pydantic import BaseModel
 import pendulum
 
 from ..model import Table
@@ -60,13 +60,41 @@ def to_str_datetime(x):
     return x.isoformat(timespec="milliseconds")
 
 
+# PyDantic Model Schema to SeaTable Schema
+def pydantic_to_seatable_schema(model: BaseModel):
+    def json_type_to_seatable_type(k, v):
+        _type = v["type"]
+        if _type == "string":
+            _type = "text"
+            if "format" in v:
+                _format = v["format"]
+                if _format == "date-time":
+                    _type = "date"
+        elif _type == "array":
+            _type = "multiple-select"
+        elif _type in ["integer", "number"]:
+            _type = "number"
+        elif _type == "boolean":
+            _type = "checkbox"
+        else:
+            raise KeyError
+
+        return {"column_name": k, "column_type": _type}
+
+    json_schema = model.schema()["properties"]
+    return [json_type_to_seatable_type(k, v) for k, v in json_schema.items()]
+
+
+# Seatable to Python Data Types
 class Sea2Py:
     def __init__(self, table_info: Table, users: dict = None, incl_sys_cols: bool = True):
         self.table_info = table_info
         self.columns = {x.name: {"type": x.type, "data": x.data} for x in self.table_info.columns}
-        self.incl_sys_cols = incl_sys_cols
-        if self.incl_sys_cols:
+        _ = (
             self.columns.update(SYSTEM_COLUMNS)
+            if incl_sys_cols
+            else self.columns.update({"_id": SYSTEM_COLUMNS["_id"]})
+        )
         self.users = users
 
     def __call__(self, row):
@@ -74,6 +102,8 @@ class Sea2Py:
         return {k: records[k] for k in self.columns if k in records}
 
     def value_deserializer(self, key: str, value: Any):
+        if value is None:
+            return value
         _type = self.columns[key]["type"].replace("-", "_")
         _data = self.columns[key].get("data", None)
         return getattr(self, "_{}".format(_type))(value, data=_data)

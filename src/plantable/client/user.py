@@ -528,8 +528,6 @@ class UserClient(AccountClient):
 
         return results
 
-<<<<<<< HEAD:src/plantable/client/user.py
-=======
     # List User Shares
     async def list_users_share_base(
         self, workspace_name_or_id: Union[str, int], base_name: str, model: BaseModel = UserInfo
@@ -590,7 +588,6 @@ class UserClient(AccountClient):
     async def create_group_share(self):
         raise NotImplementedError
 
->>>>>>> fedf3b5 (under dev.):src/plantable/client/account/user.py
     ################################################################
     # SHARING LINKS
     ################################################################

@@ -79,7 +79,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # (custom) List Tables
+    # (CUSTOM) List Tables
     async def list_tables(self, model: BaseModel = Table):
         metadata = await self.get_metadata()
         tables = metadata["tables"]
@@ -89,7 +89,7 @@ class BaseClient(HttpClient):
 
         return tables
 
-    # (custom) Get Table
+    # (CUSTOM) Get Table
     async def get_table(self, table_name: str):
         tables = await self.list_tables()
         for table in tables:
@@ -98,7 +98,7 @@ class BaseClient(HttpClient):
         else:
             raise KeyError()
 
-    # (custom) Get Table by ID
+    # (CUSTOM) Get Table by ID
     async def get_table_by_id(self, table_id: str):
         tables = await self.list_tables()
         for table in tables:
@@ -107,7 +107,7 @@ class BaseClient(HttpClient):
         else:
             raise KeyError()
 
-    # (custom) Get View by ID
+    # (CUSTOM) Get Names by ID
     async def get_names_by_ids(self, table_id: str, view_id: str):
         table = await self.get_table_by_id(table_id=table_id)
         views = await self.list_views(table_name=table.name)
@@ -117,7 +117,7 @@ class BaseClient(HttpClient):
         else:
             raise KeyError
 
-        return {"table_name": table.name, "view_name": view.name}
+        return table.name, view.name
 
     # Get Big Data Status
     async def get_bigdata_status(self):
@@ -144,7 +144,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # (custom) ls
+    # (CUSTOM) ls
     async def ls(self, table_name: str = None):
         metadata = await self.get_metadata()
         tables = metadata["tables"]
@@ -177,41 +177,33 @@ class BaseClient(HttpClient):
     ################################################################
     # ROWS
     ################################################################
-    # (custom) Query DataFrame
-    async def query_df(
-        self,
-        table_name: str,
-        columns: List[str] = None,
-        datetime_field: str = "_mtime",
-        datetime_before: str = None,
-        datetime_after: str = None,
-        limit: int = None,
-        offset: int = 0,
-        incl_sys_cols: bool = True,
-        index_orient: bool = True,
-    ) -> pd.DataFrame:
-        records = await self.query(
-            table_name=table_name,
-            columns=columns,
-            datetime_field=datetime_field,
-            datetime_before=datetime_before,
-            datetime_after=datetime_after,
-            limit=limit,
-            offset=offset,
-            incl_sys_cols=incl_sys_cols,
-            index_orient=index_orient,
-        )
-
-        if index_orient:
-            return pd.DataFrame.from_dict(records, orient="index")
-        return pd.DataFrame.from_records(records, orient="index")
-
-    # (custom) Query Key Map
+    # (CUSTOM) Query Key Map
     async def query_key_map(self, table_name: str, key_column: str):
         results = await self.query(table_name=table_name, columns=[key_column])
         return {v[key_column]: k for k, v in results.items()}
 
-    # (custom) Query
+    # List Rows (with SQL)
+    async def list_rows_with_sql(self, sql: Union[str, QueryBuilder], convert_keys: bool = True):
+        """
+        [NOTE]
+         default LIMIT 100 when not LIMIT is given!
+         max LIMIT 10000
+        """
+        METHOD = "POST"
+        URL = f"/dtable-db/api/v1/query/{self.base_uuid}/"
+        JSON = {"sql": sql.get_sql() if isinstance(sql, QueryBuilder) else sql, "convert_keys": convert_keys}
+        SUCCESS = "success"
+        ITEM = "results"
+
+        async with self.session_maker(token=self.base_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            if not response[SUCCESS]:
+                raise Exception(response)
+            results = response[ITEM]
+
+        return results
+
+    # (CUSTOM) Query
     async def query(
         self,
         table_name: str,
@@ -266,26 +258,34 @@ class BaseClient(HttpClient):
 
         return results
 
-    # List Rows (with SQL)
-    async def list_rows_with_sql(self, sql: Union[str, QueryBuilder], convert_keys: bool = True):
-        """
-        [NOTE]
-         default LIMIT 100 when not LIMIT is given!
-         max LIMIT 10000
-        """
-        METHOD = "POST"
-        URL = f"/dtable-db/api/v1/query/{self.base_uuid}/"
-        JSON = {"sql": sql.get_sql() if isinstance(sql, QueryBuilder) else sql, "convert_keys": convert_keys}
-        SUCCESS = "success"
-        ITEM = "results"
+    # (CUSTOM) Query DataFrame
+    async def query_df(
+        self,
+        table_name: str,
+        columns: List[str] = None,
+        datetime_field: str = "_mtime",
+        datetime_before: str = None,
+        datetime_after: str = None,
+        limit: int = None,
+        offset: int = 0,
+        incl_sys_cols: bool = True,
+        index_orient: bool = True,
+    ) -> pd.DataFrame:
+        records = await self.query(
+            table_name=table_name,
+            columns=columns,
+            datetime_field=datetime_field,
+            datetime_before=datetime_before,
+            datetime_after=datetime_after,
+            limit=limit,
+            offset=offset,
+            incl_sys_cols=incl_sys_cols,
+            index_orient=index_orient,
+        )
 
-        async with self.session_maker(token=self.base_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
-            if not response[SUCCESS]:
-                raise Exception(response)
-            results = response[ITEM]
-
-        return results
+        if index_orient:
+            return pd.DataFrame.from_dict(records, orient="index")
+        return pd.DataFrame.from_records(records, orient="index")
 
     # List Rows (View)
     async def list_rows(
@@ -331,6 +331,28 @@ class BaseClient(HttpClient):
                     results += response
 
         return results
+
+    # (CUSTOM) List Rows by ID
+    async def list_rows_by_id(
+        self,
+        table_id: str,
+        view_id: str,
+        convert_link_id: bool = False,
+        order_by: str = None,
+        direction: str = "asc",
+        start: int = 0,
+        limit: int = None,
+    ):
+        table_name, view_name = self.get_names_by_ids(table_id=table_id, view_id=view_id)
+        return await self.list_rows(
+            table_name=table_name,
+            view_name=view_name,
+            convert_link_id=convert_link_id,
+            order_by=order_by,
+            direction=direction,
+            start=start,
+            limit=limit,
+        )
 
     # Add Row
     async def add_row(
@@ -415,7 +437,7 @@ class BaseClient(HttpClient):
 
         return results
 
-    # (custom) Upsert Rows
+    # (CUSTOM) Upsert Rows
     async def upsert_rows(self, table_name: str, rows: List[dict], key_column: str):
         key_map = await self.query_key_map(table_name=table_name, key_column=key_column)
         # [TODO!]
@@ -569,6 +591,12 @@ class BaseClient(HttpClient):
             results = model(**results)
 
         return results
+
+    # (CUSTOM) Get View by ID
+    async def get_view_by_id(self, table_id: str, view_id: str, model: BaseModel = View):
+        table_name, view_name = await self.get_names_by_ids(table_id=table_id, view_id=view_id)
+
+        return await self.get_view(table_name=table_name, view_name=view_name)
 
     # Update View
     # NOT TESTED!

@@ -27,6 +27,7 @@ from ..model import (
     UserInfo,
     Webhook,
     Workspace,
+    SharedView,
 )
 from .base import BaseClient
 from .core import TABULATE_CONF, HttpClient, parse_name
@@ -509,15 +510,11 @@ class UserClient(AccountClient):
 
         return response
 
-    # (custom) export_table
-    async def export_table_by_name(self, group_name: str, base_name: str, table_name: str):
-        pass
-
     ################################################################
     # SHARING
     ################################################################
     # My User View Shares
-    async def list_shared_views(self):
+    async def list_shared_views(self, model: BaseModel = SharedView):
         METHOD = "GET"
         URL = "/api/v2.1/dtables/view-shares-user-shared/"
         ITEM = "view_share_list"
@@ -525,6 +522,9 @@ class UserClient(AccountClient):
         async with self.session_maker(token=self.account_token) as session:
             response = await self.request(session=session, method=METHOD, url=URL)
             results = response[ITEM]
+
+        if model:
+            results = [model(**x) for x in results]
 
         return results
 

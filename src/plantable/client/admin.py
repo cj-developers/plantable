@@ -147,33 +147,6 @@ class AdminClient(AccountClient):
     async def import_users(self):
         raise NotImplementedError
 
-    # List Bases Shared to User
-    async def list_bases_shared_to_user(self, contact_email: str, per_page: int = 25, model: BaseModel = None):
-        # correct args
-        contact_email = await self.encode_user(contact_email=contact_email)
-
-        # bases는 page_info (has_next_page, current_page)를 제공
-        METHOD = "GET"
-        URL = f"/api/v2.1/admin/users/{contact_email}/shared-dtables"
-        ITEM = "dtable_list"
-        PARAMS = {"per_page": per_page}
-
-        # 1st page
-        async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
-            results = response[ITEM]
-
-            # all pages
-            pages = range(2, response["count"] + 1, per_page)
-            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS) for page in pages]
-            responses = await asyncio.gather(*coros)
-            results += [user for response in responses for user in response[ITEM]]
-
-        if model:
-            results = [model(**x) for x in results]
-
-        return results
-
     # List User Storage Object
     async def list_user_storage_object(self):
         raise NotImplementedError
@@ -225,7 +198,7 @@ class AdminClient(AccountClient):
         return results
 
     # List Bases (List All Bases)
-    async def list_bases(self, model: BaseModel = Base):
+    async def list_bases(self, model: BaseModel = Base) -> List[Base]:
         METHOD = "GET"
         URL = "/api/v2.1/admin/dtables/"
         ITEM = "dtables"
@@ -246,6 +219,51 @@ class AdminClient(AccountClient):
             results = [model(**x) for x in results]
 
         return results
+
+    # List Bases Shared to User
+    async def list_bases_shared_to_user(self, contact_email: str, per_page: int = 25, model: BaseModel = Base):
+        # correct args
+        contact_email = await self.encode_user(contact_email=contact_email)
+
+        # bases는 page_info (has_next_page, current_page)를 제공
+        METHOD = "GET"
+        URL = f"/api/v2.1/admin/users/{contact_email}/shared-dtables"
+        ITEM = "dtable_list"
+        PARAMS = {"per_page": per_page}
+
+        # 1st page
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+            results = response[ITEM]
+
+            # all pages
+            pages = range(2, response["count"] + 1, per_page)
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS) for page in pages]
+            responses = await asyncio.gather(*coros)
+            results += [user for response in responses for user in response[ITEM]]
+
+        if model:
+            results = [model(**x) for x in results]
+
+        return results
+
+    # (CUSTOM) get base
+    async def get_base(self, group_name_or_id: Union[str, int], base_name_or_id: Union[str, int]) -> Base:
+        bases = await self.list_group_bases(name_or_id=group_name_or_id)
+        for base in bases:
+            if base.id == base_name_or_id or base.name == base_name_or_id:
+                return base
+        else:
+            raise KeyError("{}/{} is not exist".format(group_name_or_id, base_name_or_id))
+
+    # (CUSTOM) get base by uuid
+    async def get_base_by_uuid(self, base_uuid: str) -> Base:
+        bases = await self.list_bases()
+        for base in bases:
+            if base.uuid == base_uuid:
+                return base
+        else:
+            raise KeyError("base with uuid '{}' is not exist!".format(base_uuid))
 
     # Delete Base
     async def delete_base(self, base_uuid):
@@ -291,15 +309,6 @@ class AdminClient(AccountClient):
         bases = await self.list_bases()
         records = [b.to_record() for b in bases]
         self.print(records=records)
-
-    # [BASES] (CUSTOM) get base by group name
-    async def get_base(self, group_name_or_id: Union[str, int], base_name_or_id: Union[str, int]):
-        bases = await self.list_group_bases(name_or_id=group_name_or_id)
-        for base in bases:
-            if base.id == base_name_or_id or base.name == base_name_or_id:
-                return base
-        else:
-            raise KeyError("{}/{} is not exist".format(group_name_or_id, base_name_or_id))
 
     ################################################################
     # GROUPS (Admin)
@@ -469,7 +478,7 @@ class AdminClient(AccountClient):
             group = await self.get_group(name_or_id=name_or_id)
             name_or_id = group.id
         user_emails = user_emails if isinstance(user_emails, list) else [user_emails]
-        user_emails = await asyncio.gather(*[self.encode_user(user_email=user_email) for user_email in user_emails])
+        user_emails = await asyncio.gather(*[self.encode_user(contact_email=user_email) for user_email in user_emails])
 
         METHOD = "POST"
         URL = f"/api/v2.1/admin/groups/{name_or_id}/members/"
@@ -490,7 +499,7 @@ class AdminClient(AccountClient):
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
             name_or_id = group.id
-        user_email = await self.encode_user(user_email=user_email)
+        user_email = await self.encode_user(contact_email=user_email)
 
         METHOD = "DELETE"
         URL = f"/api/v2.1/admin/groups/{name_or_id}/members/{user_email}/"
@@ -675,6 +684,11 @@ class AdminClient(AccountClient):
         return response
 
     ################################################################
+    # IMPORT & EXPORT
+    # 이 Endpoint들은 원래 UserClient에 속해 있으나 AdminClient에 둠
+    ################################################################
+
+    ################################################################
     # CUSTOM
     ################################################################
     async def infer_workspace_id(self, group_name_or_id: Union[str, int]):
@@ -693,7 +707,7 @@ class AdminClient(AccountClient):
             if member.contact_email == self.username:
                 break
         else:
-            me = await self.encode_user(user_email=self.username)
+            me = await self.encode_user(contact_email=self.username)
             _ = await self.add_group_members(name_or_id=group_name_or_id, user_emails=[me])
         workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
         return await super().get_base_client_with_account_token(workspace_id=workspace_id, base_name=base_name)

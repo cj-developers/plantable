@@ -12,7 +12,6 @@ from pypika import Table as PikaTable
 from pypika.dialects import QueryBuilder
 from tabulate import tabulate
 
-from ..conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
 from ..model import (
     DTABLE_ICON_COLORS,
     DTABLE_ICON_LIST,
@@ -30,6 +29,7 @@ from ..model import (
     Webhook,
 )
 from ..schema.serde import DT_FMT, Sea2Py, to_str_datetime
+from .conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
 from .exception import MoreRows
 

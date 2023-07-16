@@ -8,7 +8,6 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ..conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
 from ..model import (
     DTABLE_ICON_COLORS,
     DTABLE_ICON_LIST,
@@ -21,18 +20,19 @@ from ..model import (
     BaseToken,
     Column,
     File,
+    SharedView,
     Table,
     Team,
     User,
     UserInfo,
     Webhook,
     Workspace,
-    SharedView,
 )
-from .base import BaseClient
-from .core import TABULATE_CONF, HttpClient, parse_name
 from .account import AccountClient
 from .admin import AdminClient
+from .base import BaseClient
+from .conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
+from .core import TABULATE_CONF, HttpClient, parse_name
 
 logger = logging.getLogger()
 
@@ -47,7 +47,6 @@ class UserClient(AccountClient):
     async def get_base_client_with_account_token(
         self, workspace_name_or_id: Union[str, int] = None, base_name: str = None
     ):
-        workspace_name_or_id, base_name = parse_name(workspace_name_or_id, base_name)
         workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
         return await super().get_base_client_with_account_token(workspace_id=workspace.id, base_name=base_name)
 
@@ -333,9 +332,6 @@ class UserClient(AccountClient):
 
     # (custom) ls
     async def ls(self, workspace_name_or_id: str = None, base_name: str = None, table_name: str = None):
-        # correct names
-        workspace_name_or_id, base_name, table_name = parse_name(workspace_name_or_id, base_name, table_name)
-
         # coros
         async def _get_records(workspace_name_or_id, base_name):
             bc = await self.get_base_client_with_account_token(
@@ -428,6 +424,29 @@ class UserClient(AccountClient):
     ################################################################
     # IMPORT & EXPORT
     ################################################################
+    # (CUSTOM) Get Table Name and View Name from Table ID and View ID - View ID is Optional
+    async def get_ids_by_names(
+        self, workspace_name_or_id: Union[str, int], base_name: str, table_name: str, view_name: str = None
+    ):
+        bc = await self.get_base_client_with_account_token(
+            workspace_name_or_id=workspace_name_or_id, base_name=base_name
+        )
+        tables = await bc.list_tables()
+
+        for table in tables:
+            if table.name == table_name:
+                break
+        else:
+            KeyError
+        if view_name is None:
+            return table.id
+
+        for view in table.views:
+            if view.name == view_name:
+                return table.id, view.id
+        else:
+            KeyError
+
     # Import Base from xlsx or csv
     async def import_base_from_xlsx_or_csv(
         self, workspace_name_or_id: Union[str, int], file: bytes, folder_id: int = None
@@ -487,13 +506,13 @@ class UserClient(AccountClient):
 
         return response
 
-    # export table
+    # Export Table
     async def export_table(
         self,
         workspace_name_or_id: Union[str, int],
         base_name: str,
-        table_id: int,
-        table_name: str,
+        table_id: int = None,
+        table_name: str = None,
     ):
         workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
@@ -509,6 +528,56 @@ class UserClient(AccountClient):
             response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
 
         return response
+
+    # (CUSTOM) Export Table by Name
+    async def export_table_by_name(
+        self,
+        workspace_name_or_id: Union[str, int],
+        base_name: str,
+        table_name: str = None,
+    ):
+        table_id = await self.get_ids_by_names(
+            workspace_name_or_id=workspace_name_or_id, base_name=base_name, table_name=table_name
+        )
+        return await self.export_table(
+            workspace_name_or_id=workspace_name_or_id, base_name=base_name, table_id=table_id, table_name=table_name
+        )
+
+    # Export View
+    async def export_view(
+        self, workspace_name_or_id: int, base_name: str, table_id: str, table_name: str, view_id: str, view_name: str
+    ):
+        workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
+
+        METHOD = "GET"
+        URL = f"/api/v2.1/workspace/{workspace.id}/synchronous-export/export-view-to-excel/"
+        PARAMS = {
+            "dtable_name": base_name,
+            "table_id": table_id,
+            "table_name": table_name,
+            "view_id": view_id,
+            "view_name": view_name,
+        }
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+
+        return response
+
+    # (CUSTOM) Export View by Name
+    async def export_view_by_name(self, workspace_name_or_id: int, base_name: str, table_name: str, view_name: str):
+        table_id, view_id = await self.get_ids_by_names(
+            workspace_name_or_id=workspace_name_or_id, base_name=base_name, table_name=table_name, view_name=view_name
+        )
+
+        return await self.export_view(
+            workspace_name_or_id=workspace_name_or_id,
+            base_name=base_name,
+            table_id=table_id,
+            table_name=table_name,
+            view_id=view_id,
+            view_name=view_name,
+        )
 
     ################################################################
     # SHARING

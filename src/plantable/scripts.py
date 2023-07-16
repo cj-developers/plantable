@@ -25,9 +25,9 @@ def run(host, port, reload, workers, log_level):
     logging.basicConfig(level=log_level)
 
     if reload:
-        app = "plantable.app:app"
+        app = "plantable.agent.app:app"
     else:
-        from .app import app
+        from .agent.app import app
 
     uvicorn.run(
         app,

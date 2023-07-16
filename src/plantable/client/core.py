@@ -8,19 +8,8 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ..conf import SEATABLE_URL
-from ..model import (
-    Admin,
-    ApiToken,
-    Base,
-    BaseToken,
-    Column,
-    File,
-    Table,
-    Team,
-    User,
-    Webhook,
-)
+from ..model import Admin, ApiToken, Base, BaseToken, Column, File, Table, Team, User, Webhook
+from .conf import SEATABLE_URL
 
 logger = logging.getLogger()
 

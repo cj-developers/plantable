@@ -8,7 +8,7 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ..conf import (
+from .conf import (
     SEATABLE_ACCOUNT_TOKEN,
     SEATABLE_API_TOKEN,
     SEATABLE_BASE_TOKEN,

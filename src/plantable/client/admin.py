@@ -42,7 +42,7 @@ class AdminClient(AccountClient):
     ################################################################
     # USERS (Admin Only)
     ################################################################
-    # (Admin) List Users
+    # List Users
     async def list_users(self, per_page: int = 25, model: BaseModel = User, **params):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
@@ -66,11 +66,11 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Add New Users
+    # Add New Users
     async def add_user(self):
         raise NotImplementedError
 
-    # (Admin) Get User
+    # Get User
     async def get_user(self, user_email: str, model: BaseModel = User):
         METHOD = "GET"
         URL = f"/api/v2.1/admin/users/{user_email}/"
@@ -84,15 +84,15 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Update User
+    # Update User
     async def update_user(self):
         raise NotImplementedError
 
-    # (Admin) Delete User
+    # Delete User
     async def delete_user(self):
         raise NotImplementedError
 
-    # (Admin) List Admin Users
+    # List Admin Users
     async def list_admin_users(self, model: BaseModel = Admin, **params):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
@@ -109,23 +109,23 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Update Admin's Role
+    # Update Admin's Role
     async def update_admin_role(self):
         raise NotImplementedError
 
-    # (Admin) Reset User's Password
+    # Reset User's Password
     async def reset_user_password(self):
         raise NotImplementedError
 
-    # (Admin) Enforce 2FA
+    # Enforce 2FA
     async def enforce_2fa(self):
         raise NotImplementedError
 
-    # (Admin) Disable 2FA
+    # Disable 2FA
     async def disable_2fa(self):
         raise NotImplementedError
 
-    # (Admin) Search User / Users
+    # Search User / Users
     async def search_users(self, query: str, model: BaseModel = User):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
@@ -143,32 +143,55 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Import Users
+    # Import Users
     async def import_users(self):
         raise NotImplementedError
 
-    # (Admin) List Bases Shared to User
-    async def list_bases_shared_to_user(self):
-        raise NotImplementedError
+    # List Bases Shared to User
+    async def list_bases_shared_to_user(self, contact_email: str, per_page: int = 25, model: BaseModel = None):
+        # correct args
+        contact_email = await self.encode_user(contact_email=contact_email)
 
-    # (Admin) List User Storage Object
+        # bases는 page_info (has_next_page, current_page)를 제공
+        METHOD = "GET"
+        URL = f"/api/v2.1/admin/users/{contact_email}/shared-dtables"
+        ITEM = "dtable_list"
+        PARAMS = {"per_page": per_page}
+
+        # 1st page
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+            results = response[ITEM]
+
+            # all pages
+            pages = range(2, response["count"] + 1, per_page)
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS) for page in pages]
+            responses = await asyncio.gather(*coros)
+            results += [user for response in responses for user in response[ITEM]]
+
+        if model:
+            results = [model(**x) for x in results]
+
+        return results
+
+    # List User Storage Object
     async def list_user_storage_object(self):
         raise NotImplementedError
 
-    # (Custom) Decode User Emails
-    async def decode_user(self, user_email):
-        if user_email.endswith("@auth.local"):
-            return user_email
-        users = await self.search_users(query=user_email)
+    # (CUSTOM) Encode User Emails
+    async def encode_user(self, contact_email: str):
+        if contact_email.endswith("@auth.local"):
+            return contact_email
+        users = await self.search_users(query=contact_email)
         if len(users) < 1:
-            raise KeyError("{} is not found!".format(user_email))
+            raise KeyError("{} is not found!".format(contact_email))
         for user in users:
-            if user.contact_email == user_email:
+            if user.contact_email == contact_email:
                 return user.email
-        raise KeyError("{} is not found!".format(user_email))
+        raise KeyError("{} is not found!".format(contact_email))
 
-    # (Custom) Encode User Emails
-    async def encode_user(self, user_email):
+    # (CUSTOM) Decode User Emails
+    async def decode_user(self, user_email: str):
         if not user_email.endswith("@auth.local"):
             return user_email
         user = await self.get_user(user_email=user_email)
@@ -177,7 +200,7 @@ class AdminClient(AccountClient):
     ################################################################
     # Bases (Admin, User)
     ################################################################
-    # (Admin) List User's Bases
+    # List User's Bases
     async def list_user_bases(self, user_id: str, model: BaseModel = Base):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
@@ -201,7 +224,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) List Bases (List All Bases)
+    # List Bases (List All Bases)
     async def list_bases(self, model: BaseModel = Base):
         METHOD = "GET"
         URL = "/api/v2.1/admin/dtables/"
@@ -224,7 +247,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Delete Base
+    # Delete Base
     async def delete_base(self, base_uuid):
         METHOD = "DELETE"
         URL = f"/api/v2.1/admin/dtable/{base_uuid}"
@@ -236,7 +259,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (admin) list trashed bases
+    # list trashed bases
     async def list_trashed_bases(self, per_page: int = 25, model: BaseModel = Base, **params):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
@@ -263,13 +286,13 @@ class AdminClient(AccountClient):
     ################################################################
     # CUSTOM
     ################################################################
-    # [BASES] (custom) ls
+    # [BASES] (CUSTOM) ls
     async def ls(self):
         bases = await self.list_bases()
         records = [b.to_record() for b in bases]
         self.print(records=records)
 
-    # [BASES] (custom) get base by group name
+    # [BASES] (CUSTOM) get base by group name
     async def get_base(self, group_name_or_id: Union[str, int], base_name_or_id: Union[str, int]):
         bases = await self.list_group_bases(name_or_id=group_name_or_id)
         for base in bases:
@@ -281,7 +304,7 @@ class AdminClient(AccountClient):
     ################################################################
     # GROUPS (Admin)
     ################################################################
-    # (Admin) List Groups
+    # List Groups
     async def list_groups(self, model: BaseModel = Group):
         # bases는 page_info (has_next_page, current_page)를 제공
         METHOD = "GET"
@@ -304,7 +327,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Add Group
+    # Add Group
     async def add_group(self, group_name: str, group_owner: str = None, model: BaseModel = None):
         METHOD = "POST"
         URL = "/api/v2.1/admin/groups/"
@@ -323,7 +346,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (CUSTOM) (Admin) Get Group
+    # (CUSTOM) Get Group
     async def get_group(self, name_or_id: Union[str, int]):
         groups = await self.list_groups()
         for group in groups:
@@ -334,7 +357,16 @@ class AdminClient(AccountClient):
         else:
             raise KeyError
 
-    # (Admin) Transfer Group
+    # (CUSTOM) get base by workspace_id
+    async def get_group_by_workspace_id(self, workspace_id: int):
+        bases = await self.list_bases()
+        for base in bases:
+            if base.workspace_id == workspace_id:
+                return await self.get_group(name_or_id=base.group_id)
+        else:
+            raise KeyError("workspace id {} is not exist".format(workspace_id))
+
+    # Transfer Group
     # [NOTE] new_group_name으로 안 바뀌어서 Forum에 문의 중
     async def transfer_group(self, name_or_id: Union[str, int], owner: str = None, name: str = None):
         if isinstance(name_or_id, str):
@@ -352,7 +384,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Delete Group
+    # Delete Group
     async def delete_group(self, name_or_id: Union[str, int]):
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
@@ -368,7 +400,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) List Group Bases
+    # List Group Bases
     async def list_group_bases(self, name_or_id: Union[str, int], model: BaseModel = Base):
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
@@ -388,7 +420,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Reorder Your Groups
+    # Reorder Your Groups
     async def reorder_group(
         self, name_or_id: Union[str, int], anchor_group_name_or_id: Union[str, int] = None, to_last: bool = False
     ):
@@ -411,7 +443,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) List Group Members
+    # List Group Members
     async def list_group_members(self, name_or_id: Union[str, int], model: BaseModel = UserInfo):
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
@@ -431,13 +463,13 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Add Group Members
+    # Add Group Members
     async def add_group_members(self, name_or_id: Union[str, int], user_emails: List[str], model: BaseModel = None):
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
             name_or_id = group.id
         user_emails = user_emails if isinstance(user_emails, list) else [user_emails]
-        user_emails = await asyncio.gather(*[self.decode_user(user_email=user_email) for user_email in user_emails])
+        user_emails = await asyncio.gather(*[self.encode_user(user_email=user_email) for user_email in user_emails])
 
         METHOD = "POST"
         URL = f"/api/v2.1/admin/groups/{name_or_id}/members/"
@@ -453,12 +485,12 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Remove Group Member
+    # Remove Group Member
     async def remove_group_member(self, name_or_id: Union[str, int], user_email: List[str]):
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
             name_or_id = group.id
-        user_email = await self.decode_user(user_email=user_email)
+        user_email = await self.encode_user(user_email=user_email)
 
         METHOD = "DELETE"
         URL = f"/api/v2.1/admin/groups/{name_or_id}/members/{user_email}/"
@@ -473,7 +505,7 @@ class AdminClient(AccountClient):
     ################################################################
     # SHARING LINKS (Admin)
     ################################################################
-    # (Admin) List External Links (Base Links Only)
+    # List External Links (Base Links Only)
     async def list_external_links(
         self,
         per_page: int = 25,
@@ -499,7 +531,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Delete Base External Link
+    # Delete Base External Link
     async def delete_base_external_link(self, external_link_token):
         METHOD = "DELETE"
         URL = f"/api/v2.1/admin/external-links/{external_link_token}/"
@@ -511,7 +543,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) List External Links (Base Links Only)
+    # List External Links (Base Links Only)
     async def list_view_external_links(
         self,
         per_page: int = 25,
@@ -537,7 +569,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Delete View External Link
+    # Delete View External Link
     async def delete_view_external_link(self, view_external_link_token):
         METHOD = "DELETE"
         URL = f"/api/v2.1/admin/view-external-links/{view_external_link_token}/"
@@ -549,7 +581,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) List Base External Links (Base Links and View Links)
+    # List Base External Links (Base Links and View Links)
     async def list_base_external_links(
         self,
         group_name_or_id: Union[str, int],
@@ -574,7 +606,7 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) List Invite Links
+    # List Invite Links
     # NOT WORKING (404)
     async def list_invite_links(self, per_page: int = 25, model: BaseModel = None):
         METHOD = "GET"
@@ -597,11 +629,11 @@ class AdminClient(AccountClient):
 
         return results
 
-    # (Admin) Update Invite Link
+    # Update Invite Link
     async def update_invite_links(self):
         raise NotImplementedError
 
-    # (Admin) Delete Invite Link
+    # Delete Invite Link
     async def delete_invite_links(self):
         raise NotImplementedError
 
@@ -661,7 +693,7 @@ class AdminClient(AccountClient):
             if member.contact_email == self.username:
                 break
         else:
-            me = await self.decode_user(user_email=self.username)
+            me = await self.encode_user(user_email=self.username)
             _ = await self.add_group_members(name_or_id=group_name_or_id, user_emails=[me])
         workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
         return await super().get_base_client_with_account_token(workspace_id=workspace_id, base_name=base_name)

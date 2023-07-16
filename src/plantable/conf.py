@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 SEATABLE_URL = os.getenv("SEATABLE_URL")
 SEATABLE_USERNAME = os.getenv("SEATABLE_USERNAME")

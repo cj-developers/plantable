@@ -12,6 +12,7 @@ __all__ = [
     "Column",
     "File",
     "Table",
+    "Metadata",
     "View",
     "SharedView",
     "User",
@@ -187,6 +188,14 @@ class Table(_Model):
             "table_name": self.name,
             "columns": [c.to_column_info() for c in self.columns],
         }
+
+
+class Metadata(_Model):
+    tables: List[Table]
+    version: int
+    format_version: int
+    scripts: List[dict] = None
+    settings: dict = None
 
 
 class User(_Model):

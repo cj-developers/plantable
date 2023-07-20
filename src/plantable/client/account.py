@@ -10,8 +10,6 @@ from tabulate import tabulate
 
 from .conf import (
     SEATABLE_ACCOUNT_TOKEN,
-    SEATABLE_API_TOKEN,
-    SEATABLE_BASE_TOKEN,
     SEATABLE_PASSWORD,
     SEATABLE_URL,
     SEATABLE_USERNAME,

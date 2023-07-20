@@ -2,13 +2,13 @@ import logging
 from datetime import datetime
 from typing import Any, List, Union
 from pydantic import BaseModel
-import pendulum
+import pytz
 
 from ..model import Table
 
 logger = logging.getLogger(__name__)
 
-KST = pendulum.timezone("Asia/Seoul")
+KST = pytz.timezone("Asia/Seoul")
 DT_FMT = "%Y-%m-%dT%H:%M:%S.%f%z"
 
 SCHEMA_MAP = {
@@ -53,7 +53,8 @@ def to_datetime(x, dt_fmt=DT_FMT):
         dt = datetime.strptime(x, dt_fmt)
     except ValueError as ex:
         dt = datetime.fromisoformat(x)
-    return dt.isoformat(timespec="milliseconds")
+    dt = dt.astimezone(KST)
+    return dt
 
 
 def to_str_datetime(x):
@@ -162,7 +163,10 @@ class Sea2Py:
 
     # LINK
     def _link(self, value: List[Any], data: dict = None) -> list:
-        return [x["display_value"] for x in value]
+        value = [x["display_value"] for x in value]
+        if data and not data.get("is_mutiple"):
+            value = value[0]
+        return value
 
     def _link_formula(self, value, data: dict = None):
         return value

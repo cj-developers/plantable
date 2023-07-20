@@ -31,9 +31,6 @@ from ..model import (
     Workspace,
 )
 from .account import AccountClient
-from .base import BaseClient
-from .conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
-from .core import TABULATE_CONF, HttpClient
 
 logger = logging.getLogger()
 

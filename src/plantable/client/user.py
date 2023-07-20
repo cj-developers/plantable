@@ -29,10 +29,7 @@ from ..model import (
     Workspace,
 )
 from .account import AccountClient
-from .admin import AdminClient
-from .base import BaseClient
-from .conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_API_TOKEN, SEATABLE_BASE_TOKEN, SEATABLE_URL
-from .core import TABULATE_CONF, HttpClient, parse_name
+from .core import parse_name
 
 logger = logging.getLogger()
 

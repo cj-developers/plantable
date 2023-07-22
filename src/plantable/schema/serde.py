@@ -164,8 +164,15 @@ class Sea2Py:
     # LINK
     def _link(self, value: List[Any], data: dict = None) -> list:
         value = [x["display_value"] for x in value]
-        if data and not data.get("is_mutiple"):
-            value = value[0]
+        if not value:
+            return
+        if data:
+            if "array_type" in data and data["array_type"] == "single-select":
+                kv = {x["id"]: x["name"] for x in data["array_data"]["options"]}
+                print(kv)
+                value = [kv[x] if x in kv else x for x in value]
+            if "is_multiple" in data and not data["is_multiple"]:
+                value = value[0]
         return value
 
     def _link_formula(self, value, data: dict = None):

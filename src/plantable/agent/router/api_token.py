@@ -1,12 +1,9 @@
-import io
-from typing import Annotated
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends
 from fastapi.security import APIKeyHeader
 
 from ...client import BaseClient
-from ..conf import AWS_S3_BUCKET_NAME, session
-from ..util import read_table, read_view, upload_to_s3
+from ..conf import session
+from ..util import view_to_parquet, upload_to_s3
 
 router = APIRouter(prefix="/api-token", tags=["ApiTokenClient"])
 
@@ -30,43 +27,18 @@ async def info_my_seatable_api_token(base_client: BaseClient = Depends(get_base_
     return base_client.base_token
 
 
-# Export
-@router.get("/export/parquet/table")
-async def export_table_to_s3_with_parquet(
-    workspace_name: str,
-    base_name: str,
-    table_name: str,
-    modified_before: str = None,
-    modified_after: str = None,
-    prod: bool = False,
-    base_client: BaseClient = Depends(get_base_client),
-):
-    content = await read_table(
-        client=base_client, table_name=table_name, modified_before=modified_before, modified_after=modified_after
-    )
-
-    return await upload_to_s3(
-        session=session,
-        content=content,
-        format="parquet",
-        prod=prod,
-        workspace_name=workspace_name,
-        base_name=base_name,
-        table_name=table_name,
-    )
-
-
+# Export View to S3 Parquet
 @router.get("/export/parquet/view")
 async def export_view_to_s3_with_parquet(
     workspace_name: str,
     base_name: str,
     table_name: str,
     view_name: str,
-    view_group: str = None,
+    group: str = None,
     prod: bool = False,
     base_client: BaseClient = Depends(get_base_client),
 ):
-    content = await read_view(client=base_client, table_name=table_name, view_name=view_name)
+    content = await view_to_parquet(client=base_client, table_name=table_name, view_name=view_name)
 
     return await upload_to_s3(
         session=session,
@@ -77,5 +49,5 @@ async def export_view_to_s3_with_parquet(
         base_name=base_name,
         table_name=table_name,
         view_name=view_name,
-        view_group=view_group,
+        group=group,
     )

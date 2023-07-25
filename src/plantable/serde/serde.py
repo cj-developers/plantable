@@ -10,32 +10,6 @@ logger = logging.getLogger(__name__)
 
 KST = pytz.timezone("Asia/Seoul")
 DT_FMT = "%Y-%m-%dT%H:%M:%S.%f%z"
-
-SCHEMA_MAP = {
-    "text": "text",
-    "long_text": "long-text",
-    "number": "number",
-    "collaborator": "collaborator",
-    "date": "date",
-    "duration": "duration",
-    "single_select": "single-select",
-    "multiple_select": "multiple-select",
-    "image": "image",
-    "file": "file",
-    "email": "email",
-    "url": "url",
-    "checkbox": "checkbox",
-    "rating": "rating",
-    "formula": "formula",
-    "link": "link",
-    "link_formula": "link-formula",
-    "creator": "creator",
-    "ctime": "ctime",
-    "last_modifier": "last-modifier",
-    "mtime": "mtime",
-    "auto_number": "auto-number",
-}
-
 SYSTEM_COLUMNS = {
     "_id": {"type": "text"},
     "_locked": {"type": "checkbox"},

@@ -29,7 +29,7 @@ from ..model import (
     View,
     Webhook,
 )
-from ..schema.serde import DT_FMT, Sea2Py, to_str_datetime
+from ..serde.serde import DT_FMT, Sea2Py, to_str_datetime
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
 from .exception import MoreRows

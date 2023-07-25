@@ -26,18 +26,22 @@ def generate_obj_key(
     workspace_name: str,
     base_name: str,
     table_name: str,
-    filename: str = None,
-    view_group: str = None,
-    view_name: str = None,
+    view_name: str,
+    group: str = None,
     aws_s3_bucket_prefix: str = AWS_S3_BUCKET_PREFIX,
 ) -> str:
     keys = [aws_s3_bucket_prefix, format, PROD if prod else DEV, workspace_name, base_name, table_name]
 
-    if not view_name:
-        keys.append("table")
-    else:
-        keys.append("=".join(["view_group", view_group]) if view_group else "=".join(["view", view_name]))
+    # append prefix
+    if group:
+        keys.append(f"group={group}")
+    keys.append(f"view={view_name}")
 
+    # append filename
+    names = [workspace_name, base_name, table_name]
+    if view_name:
+        names.append(view_name)
+    filename = ".".join(["_".join(names), format])
     keys.append(filename)
 
     return "/".join(keys)
@@ -54,7 +58,7 @@ def pylist_to_parquet(records: List[dict], version: str = "1.0") -> bytes:
 
 
 # Read Table using BaseClient as Parquet
-async def read_table(client: BaseClient, table_name: str, modified_before: str, modified_after: str):
+async def table_to_parquet(client: BaseClient, table_name: str, modified_before: str, modified_after: str):
     records = await client.read_table(
         table_name=table_name,
         modified_before=modified_before,
@@ -64,7 +68,7 @@ async def read_table(client: BaseClient, table_name: str, modified_before: str, 
 
 
 # Read Table using BaseClient as Parquet
-async def read_view(client: BaseClient, table_name: str, view_name: str):
+async def view_to_parquet(client: BaseClient, table_name: str, view_name: str):
     records = await client.read_view(table_name=table_name, view_name=view_name)
     return pylist_to_parquet(records)
 
@@ -79,26 +83,33 @@ async def upload_to_s3(
     base_name: str,
     table_name: str,
     view_name: str = None,
-    view_group: str = None,
+    group: str = None,
 ):
     obj_key = generate_obj_key(
-        format="parquet",
+        format=format,
         prod=prod,
         workspace_name=workspace_name,
         base_name=base_name,
         table_name=table_name,
-        filename=generate_filename(
-            workspace_name=workspace_name,
-            base_name=base_name,
-            table_name=table_name,
-            view_name=view_name,
-            format=format,
-        ),
         view_name=view_name,
-        view_group=view_group,
+        group=group,
     )
 
     async with session.client("s3") as client:
         await client.upload_fileobj(io.BytesIO(content), AWS_S3_BUCKET_NAME, obj_key)
 
     return {"bucket": AWS_S3_BUCKET_NAME, "key": obj_key, "size": len(content)}
+
+
+# Download from S3
+async def download_from_s3(
+    session: aioboto3.Session,
+    bucket: str,
+    key: str,
+):
+    async with session.resource("s3") as client:
+        object = await client.Object(bucket, key)
+        results = await object.get()
+        content = await results["Body"].read()
+
+    return content

@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any, List, Union
 from pydantic import BaseModel
 import pytz
+from ..client import BaseClient
 
 from ..model import Table
 
@@ -21,6 +22,17 @@ SYSTEM_COLUMNS = {
     "_last_modifier": {"type": "last-modifier"},
 }
 
+SYS_COLS = {
+    "_id": {"column_type": "text"},
+    "_locked": {"column_type": "checkbox"},
+    "_locked_by": {"column_type": "text"},
+    "_archived": {"column_type": "checkbox"},
+    "_creator": {"column_type": "creator"},
+    "_ctime": {"column_type": "ctime"},
+    "_mtime": {"column_type": "mtime"},
+    "_last_modifier": {"column_type": "last-modifier"},
+}
+
 
 def to_datetime(x, dt_fmt=DT_FMT):
     try:
@@ -31,33 +43,20 @@ def to_datetime(x, dt_fmt=DT_FMT):
     return dt
 
 
-def to_str_datetime(x):
-    return x.isoformat(timespec="milliseconds")
+class ToPython:
+    def __init__(self, table: Table, users: dict = None):
+        self.table = table
+        self.users = users
+        self.columns = {
+            **{column.name: {"column_type": column.type, "column_data": column.data} for column in table.columns},
+            **SYS_COLS,
+        }
 
+    def __call__(self, row: dict):
+        return
 
-# PyDantic Model Schema to SeaTable Schema
-def pydantic_to_seatable_schema(model: BaseModel):
-    def json_type_to_seatable_type(k, v):
-        _type = v["type"]
-        if _type == "string":
-            _type = "text"
-            if "format" in v:
-                _format = v["format"]
-                if _format == "date-time":
-                    _type = "date"
-        elif _type == "array":
-            _type = "multiple-select"
-        elif _type in ["integer", "number"]:
-            _type = "number"
-        elif _type == "boolean":
-            _type = "checkbox"
-        else:
-            raise KeyError
-
-        return {"column_name": k, "column_type": _type}
-
-    json_schema = model.schema()["properties"]
-    return [json_type_to_seatable_type(k, v) for k, v in json_schema.items()]
+    def to_python(self, field, value):
+        pass
 
 
 # Seatable to Python Data Types

@@ -29,7 +29,7 @@ from ..model import (
     View,
     Webhook,
 )
-from ..serde.serde import DT_FMT, Sea2Py, to_str_datetime
+from ..serde.to_python import Sea2Py
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
 from .exception import MoreRows
@@ -423,6 +423,10 @@ class BaseClient(HttpClient):
     ) -> List[dict]:
         LIMIT = 100
         OFFSET = 0
+
+        # Helper
+        def to_str_datetime(x):
+            return x.isoformat(timespec="milliseconds")
 
         # correct args
         table = PikaTable(table_name)

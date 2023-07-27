@@ -2,10 +2,10 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import List, Union
-from fastapi import HTTPException, status
 
-import requests
 import pandas as pd
+import requests
+from fastapi import HTTPException, status
 from pydantic import BaseModel
 from pypika import MySQLQuery as PikaQuery
 from pypika import Table as PikaTable
@@ -21,15 +21,15 @@ from ..model import (
     BaseActivity,
     BaseToken,
     Column,
-    Table,
     Metadata,
+    Table,
     Team,
     User,
     UserInfo,
     View,
     Webhook,
 )
-from ..serde.to_python import Sea2Py
+from ..serde import RowToPythonRecord
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
 from .exception import MoreRows
@@ -419,7 +419,6 @@ class BaseClient(HttpClient):
         limit: int = None,
         mtime: str = "_mtime",
         deserialize: bool = True,
-        incl_sys_cols: bool = True,
     ) -> List[dict]:
         LIMIT = 100
         OFFSET = 0
@@ -430,11 +429,7 @@ class BaseClient(HttpClient):
 
         # correct args
         table = PikaTable(table_name)
-        if columns:
-            if "_id" not in columns:
-                columns.append("_id")
-        else:
-            columns = ["*"]
+        columns = ["*"] if not columns else [x.strip() for x in columns.split(",")]
         _limit = min(LIMIT, limit) if limit else limit
         _offset = offset if offset else OFFSET
 
@@ -463,8 +458,8 @@ class BaseClient(HttpClient):
 
         # to python data type
         if deserialize:
-            table_info = await self.get_table(table_name)
-            deserializer = Sea2Py(table_info=table_info, incl_sys_cols=incl_sys_cols)
+            table = await self.get_table(table_name)
+            deserializer = RowToPythonRecord(table=table)
             rows = [deserializer(r) for r in rows]
 
         return rows
@@ -479,7 +474,6 @@ class BaseClient(HttpClient):
         start: int = 0,
         limit: int = None,
         deserialize: bool = True,
-        incl_sys_cols: bool = True,
     ):
         rows = await self.list_rows(
             table_name=table_name,
@@ -492,9 +486,9 @@ class BaseClient(HttpClient):
         )
 
         # to python data type
-        table_info = await self.get_table(table_name)
+        table = await self.get_table(table_name)
         if deserialize:
-            deserializer = Sea2Py(table_info=table_info, incl_sys_cols=incl_sys_cols)
+            deserializer = RowToPythonRecord(table=table)
             rows = [deserializer(r) for r in rows]
 
         return rows

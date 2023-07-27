@@ -1,28 +1,18 @@
 import logging
+import os
 from datetime import datetime
 from typing import Any, List, Union
-from pydantic import BaseModel
+
 import pytz
-from ..client import BaseClient
 
 from ..model import Table
 
 logger = logging.getLogger(__name__)
 
-KST = pytz.timezone("Asia/Seoul")
+TZ_INFO = os.getenv("TZ")
+TZ = pytz.timezone(TZ_INFO) if TZ_INFO else pytz.UTC
 DT_FMT = "%Y-%m-%dT%H:%M:%S.%f%z"
-SYSTEM_COLUMNS = {
-    "_id": {"type": "text"},
-    "_locked": {"type": "checkbox"},
-    "_locked_by": {"type": "text"},
-    "_archived": {"type": "checkbox"},
-    "_creator": {"type": "creator"},
-    "_ctime": {"type": "ctime"},
-    "_mtime": {"type": "mtime"},
-    "_last_modifier": {"type": "last-modifier"},
-}
-
-SYS_COLS = {
+SYSTEM_FIELDS = {
     "_id": {"column_type": "text"},
     "_locked": {"column_type": "checkbox"},
     "_locked_by": {"column_type": "text"},
@@ -34,145 +24,111 @@ SYS_COLS = {
 }
 
 
-def to_datetime(x, dt_fmt=DT_FMT):
-    try:
-        dt = datetime.strptime(x, dt_fmt)
-    except ValueError as ex:
-        dt = datetime.fromisoformat(x)
-    dt = dt.astimezone(KST)
-    return dt
-
-
-class ToPython:
+################################################################
+# Converter
+################################################################
+class RowToPythonRecord:
     def __init__(self, table: Table, users: dict = None):
         self.table = table
         self.users = users
         self.columns = {
             **{column.name: {"column_type": column.type, "column_data": column.data} for column in table.columns},
-            **SYS_COLS,
+            **SYSTEM_FIELDS,
         }
 
-    def __call__(self, row: dict):
-        return
-
-    def to_python(self, field, value):
-        pass
-
-
-# Seatable to Python Data Types
-class Sea2Py:
-    def __init__(self, table_info: Table, users: dict = None, incl_sys_cols: bool = True):
-        self.table_info = table_info
-        self.columns = {x.name: {"type": x.type, "data": x.data} for x in self.table_info.columns}
-        _ = (
-            self.columns.update(SYSTEM_COLUMNS)
-            if incl_sys_cols
-            else self.columns.update({"_id": SYSTEM_COLUMNS["_id"]})
-        )
-        self.users = users
-
     def __call__(self, row):
-        records = {k: self.value_deserializer(k, v) for k, v in row.items() if k in self.columns}
-        return {k: records[k] for k in self.columns if k in records}
+        return {
+            column: getattr(self, self.columns[column]["column_type"].replace("-", "_"))(
+                value=row[column], data=self.columns[column].get("column_data")
+            )
+            for column in self.columns
+            if column in row
+        }
 
-    def value_deserializer(self, key: str, value: Any):
-        if value is None:
-            return value
-        _type = self.columns[key]["type"].replace("-", "_")
-        _data = self.columns[key].get("data", None)
-        return getattr(self, "_{}".format(_type))(value, data=_data)
-
-    # BOOLEAN
-    def _checkbox(self, value, data: dict = None) -> bool:
+    def checkbox(self, value, data: dict = None) -> bool:
         return value
 
-    # STRING
-    def _text(self, value: str, data: dict = None) -> str:
+    def text(self, value: str, data: dict = None) -> str:
         return value
 
-    def _long_text(self, value: str, data: dict = None) -> str:
+    def long_text(self, value: str, data: dict = None) -> str:
         return value
 
-    def _email(self, value: str, data: dict = None) -> str:
+    def email(self, value: str, data: dict = None) -> str:
         return value
 
-    def _url(self, value: str, data: dict = None) -> str:
+    def url(self, value: str, data: dict = None) -> str:
         return value
 
-    # INTEGER
-    def _rate(self, value: int, data: dict = None) -> int:
+    def rate(self, value: int, data: dict = None) -> int:
         return value
 
-    # INTEGER OR FLOAT
-    def _number(self, value: Union[int, float], data: dict = None) -> Union[int, float]:
+    def number(self, value: Union[int, float], data: dict = None) -> Union[int, float]:
         if data and data["enable_precision"] and data["precision"] == 0:
             return int(value)
         return float(value)
 
-    # DATETIME
-    def _date(self, value: str, data: dict = None) -> datetime:
+    def date(self, value: str, data: dict = None) -> datetime:
         if value.endswith("Z"):
             value = value.replace("Z", "+00:00", 1)
-        return to_datetime(value)
+        try:
+            dt = datetime.strptime(value, DT_FMT)
+        except ValueError as ex:
+            dt = datetime.fromisoformat(value)
+        return dt.astimezone(TZ)
 
-    def _duration(self, value: str, data: dict = None) -> int:
+    def duration(self, value: str, data: dict = None) -> int:
         """
         return seconds
         """
         return value
 
-    def _ctime(self, value, data: dict = None):
-        return self._date(value, data)
+    def ctime(self, value, data: dict = None):
+        return self.date(value, data)
 
-    def _mtime(self, value, data: dict = None):
-        return self._date(value, data)
+    def mtime(self, value, data: dict = None):
+        return self.date(value, data)
 
-    # SELECT
-    def _single_select(self, value: str, data: dict = None) -> str:
+    def single_select(self, value: str, data: dict = None) -> str:
         return value
 
-    def _multiple_select(self, value: List[str], data: dict = None) -> List[str]:
+    def multiple_select(self, value: List[str], data: dict = None) -> List[str]:
         return value
 
-    # LINK
-    def _link(self, value: List[Any], data: dict = None) -> list:
+    def link(self, value: List[Any], data: dict = None) -> list:
         value = [x["display_value"] for x in value]
         if not value:
             return
         if data:
             if "array_type" in data and data["array_type"] == "single-select":
                 kv = {x["id"]: x["name"] for x in data["array_data"]["options"]}
-                print(kv)
                 value = [kv[x] if x in kv else x for x in value]
             if "is_multiple" in data and not data["is_multiple"]:
                 value = value[0]
         return value
 
-    def _link_formula(self, value, data: dict = None):
+    def link_formula(self, value, data: dict = None):
         return value
 
-    # USER
-    def _user(self, user: str):
+    def user(self, user: str):
         return self.user[user] if self.users and user in self.users else user
 
-    def _collaborator(self, value: List[str], data: dict = None) -> List[str]:
-        return [self._user(x) for x in value]
+    def collaborator(self, value: List[str], data: dict = None) -> List[str]:
+        return [self.user(x) for x in value]
 
-    def _creator(self, value: str, data: dict = None) -> str:
-        return self._user(value)
+    def creator(self, value: str, data: dict = None) -> str:
+        return self.user(value)
 
-    def _last_modifier(self, value: str, data: dict = None) -> str:
-        return self._user(value)
+    def last_modifier(self, value: str, data: dict = None) -> str:
+        return self.user(value)
 
-    # BINARY
-    def _file(self, value, data: dict = None):
+    def file(self, value, data: dict = None):
         return value
 
-    def _image(self, value, data: dict = None):
+    def image(self, value, data: dict = None):
         return value
 
-    # Formula
-    def _formula(self, value, data: dict = None):
+    def formula(self, value, data: dict = None):
         if data:
             try:
                 value = getattr(self, "_{}".format(data["result_type"]))(value)
@@ -182,5 +138,5 @@ class Sea2Py:
                 value = None
         return value
 
-    def _auto_number(self, value, data: dict = None):
+    def auto_number(self, value, data: dict = None):
         return value

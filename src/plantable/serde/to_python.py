@@ -6,28 +6,15 @@ from typing import Any, List, Union
 import pytz
 
 from ..model import Table
+from .const import DT_FMT, SYSTEM_FIELDS, TZ
 
 logger = logging.getLogger(__name__)
-
-TZ_INFO = os.getenv("TZ")
-TZ = pytz.timezone(TZ_INFO) if TZ_INFO else pytz.UTC
-DT_FMT = "%Y-%m-%dT%H:%M:%S.%f%z"
-SYSTEM_FIELDS = {
-    "_id": {"column_type": "text"},
-    "_locked": {"column_type": "checkbox"},
-    "_locked_by": {"column_type": "text"},
-    "_archived": {"column_type": "checkbox"},
-    "_creator": {"column_type": "creator"},
-    "_ctime": {"column_type": "ctime"},
-    "_mtime": {"column_type": "mtime"},
-    "_last_modifier": {"column_type": "last-modifier"},
-}
 
 
 ################################################################
 # Converter
 ################################################################
-class RowToPythonRecord:
+class ToPythonDict:
     def __init__(self, table: Table, users: dict = None):
         self.table = table
         self.users = users
@@ -35,6 +22,7 @@ class RowToPythonRecord:
             **{column.name: {"column_type": column.type, "column_data": column.data} for column in table.columns},
             **SYSTEM_FIELDS,
         }
+        self.key_map = {column.key: column.name for column in table.columns}
 
     def __call__(self, row):
         return {
@@ -64,7 +52,7 @@ class RowToPythonRecord:
         return value
 
     def number(self, value: Union[int, float], data: dict = None) -> Union[int, float]:
-        if data and data["enable_precision"] and data["precision"] == 0:
+        if data and data.get("enable_precision") and data["precision"] == 0:
             return int(value)
         return float(value)
 
@@ -108,6 +96,17 @@ class RowToPythonRecord:
         return value
 
     def link_formula(self, value, data: dict = None):
+        if not value:
+            return
+        if data:
+            if "array_type" in data:
+                array_data = data.get("array_data")
+                if not isinstance(value, list):
+                    value = [value]
+                value = [getattr(self, data["array_type"])(x, array_data) for x in value]
+            link_column = self.columns[self.key_map[data["link_column_key"]]]
+            if not link_column["column_data"]["is_multiple"]:
+                value = value[0]
         return value
 
     def user(self, user: str):

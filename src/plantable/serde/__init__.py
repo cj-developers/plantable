@@ -1,2 +1,2 @@
-from .to_python import RowToPythonRecord
-from .from_arrow import RowsFromArrowTable
+from .to_python import ToPythonDict
+from .from_arrow import FromArrowTable

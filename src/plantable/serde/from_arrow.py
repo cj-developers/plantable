@@ -1,6 +1,9 @@
-import pyarrow as pa
 import parse
+import pyarrow as pa
 
+from .const import SYSTEM_FIELDS
+
+# SeaTable dtypes
 CHECKBOX = {"column_type": "checkbox"}
 TEXT = {"column_type": "text"}
 LONG_TEXT = {"column_type": "long-text"}
@@ -12,7 +15,9 @@ DATETIME = {"column_type": "date", "column_data": {"format": "YYYY-MM-DD HH:mm"}
 SINGLE_SELECT = {"column_type": "single-select"}
 MULTIPLE_SELECT = {"column_type": "multiple-select"}
 
-SCHMEA_MAP = {
+# Arrow to Seatable Schema
+SCHEMA_MAP = {
+    "null": TEXT,
     "bool": CHECKBOX,
     "int8": INTEGER,
     "int16": INTEGER,
@@ -22,43 +27,69 @@ SCHMEA_MAP = {
     "uint16": INTEGER,
     "uint32": INTEGER,
     "uint64": INTEGER,
-    "float16": NUMBER,
-    "float32": NUMBER,
-    "float64": NUMBER,
-    "time32(unit)": DURATION,
-    "time64(unit)": DURATION,
-    "timestamp(unit[, tz])": DATETIME,
+    "halffloat": NUMBER,  # float16
+    "float": NUMBER,  # float32
+    "double": NUMBER,  # float64
+    "time32": DURATION,
+    "time64": DURATION,
+    "timestamp": DATETIME,
     "date32": DATE,
     "date64": DATE,
-    "duration(unit)": DURATION,
+    "duration": DURATION,
     "string": TEXT,
     "utf8": TEXT,
     "large_string": LONG_TEXT,
     "large_utf8": LONG_TEXT,
-    "decimal128(int precision, int scale=0)": NUMBER,
-    "list_(value_type, int list_size=-1)": MULTIPLE_SELECT,
+    "decimal128": NUMBER,
+    "list": MULTIPLE_SELECT,
+    "large_list": MULTIPLE_SELECT,
 }
 
 ARROW_STR_DTYPE_PATTERNS = [
     parse.compile("{dtype}[{unit}, tz={tz}]"),
     parse.compile("{dtype}[{unit}]"),
-    parse.compile("{dtype}({m}, {d})"),
-    parse.compile("{dtype}<item: {item_dtype}>"),
+    parse.compile("{dtype}({precision}, {scale})"),
+    parse.compile("{dtype}<item: {item}>"),
+    parse.compile("{dtype}<item: {item}>[{list_size}]"),
+    parse.compile("{dtype}"),
 ]
 
 
-class RowsFromArrowTable:
+class FromArrowTable:
     def __init__(self, tbl: pa.Table):
         self.tbl = tbl
-        self.schema = [(c, str(tbl.schema.field(c).type)) for c in tbl.schema.names]
+        self._schema = [(c, str(tbl.schema.field(c).type)) for c in tbl.schema.names]
 
-    def seatable_schema(self):
-        schema = dict()
-        for column, dtype in self.schema:
-            for pattern in ARROW_STR_DTYPE_PATTERNS:
-                r = pattern.parse(dtype)
-                if r:
-                    break
+        # get deserializer opts
+        self.opts = {column: self.dtype_parser(dtype) for column, dtype in self._schema}
+
+        # seatable schema
+        self.columns = [
+            {"column_name": name, **SCHEMA_MAP[opt["dtype"]]}
+            for name, opt in self.opts.items()
+            if name not in SYSTEM_FIELDS
+        ]
+
+    @staticmethod
+    def dtype_parser(x):
+        for pattern in ARROW_STR_DTYPE_PATTERNS:
+            r = pattern.parse(x)
+            if r:
+                return r.named
+
+    def get_rows_for_append(self):
+        return [{k: v for k, v in r.items() if k not in SYSTEM_FIELDS} for r in self.tbl.to_pylist()]
+
+    def get_rows_for_update(self, row_id_field: str = "_id"):
+        updates = list()
+        for row in self.tbl.to_pylist():
+            updates.append(
+                {"row_id": row[row_id_field], "row": {k: v for k, v in row.items() if k not in SYSTEM_FIELDS}}
+            )
+        return updates
+
+    def null(self, value):
+        pass
 
     def bool(self, value):
         pass
@@ -87,13 +118,13 @@ class RowsFromArrowTable:
     def uint64(self, value):
         pass
 
-    def float16(self, value):
+    def halffloat(self, value):
         pass
 
-    def float32(self, value):
+    def float(self, value):
         pass
 
-    def float64(self, value):
+    def double(self, value):
         pass
 
     def time32(self, value, unit):
@@ -105,29 +136,26 @@ class RowsFromArrowTable:
     def timestamp(self, value, unit, tz: str = None):
         pass
 
-    def date32(self, value):
+    def date32(self, value, unit: str):
         pass
 
-    def date64(self, value):
+    def date64(self, value, unit: str):
         pass
 
-    def duration(self, value, unit):
+    def duration(self, value, unit: str):
         pass
 
     def string(self, value):
         pass
 
-    def utf8(self, value):
-        pass
-
     def large_string(self, value):
         pass
 
-    def large_utf8(self, value):
+    def decimal128(self, value, precision: int = 0, scale: int = 0):
         pass
 
-    def decimal128(self, value, precision, scale: int = 0):
+    def list(self, value, item, list_size: int = -1):
         pass
 
-    def list_(self, value, value_type, list_size: int = 0):
+    def large_list(self, value, item, list_size: int = -1):
         pass

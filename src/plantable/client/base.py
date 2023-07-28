@@ -29,7 +29,7 @@ from ..model import (
     View,
     Webhook,
 )
-from ..serde import RowToPythonRecord
+from ..serde import ToPythonDict
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
 from .exception import MoreRows
@@ -288,12 +288,7 @@ class BaseClient(HttpClient):
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
         JSON = {"table_name": table_name, "row": row}
         if anchor_row_id:
-            JSON.update(
-                {
-                    "ahchor_row_id": anchor_row_id,
-                    "row_insert_position": row_insert_position,
-                }
-            )
+            JSON.update({"ahchor_row_id": anchor_row_id, "row_insert_position": row_insert_position})
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
@@ -458,8 +453,9 @@ class BaseClient(HttpClient):
 
         # to python data type
         if deserialize:
+            # [NOTE] table은 table metadata(schema)를 의미
             table = await self.get_table(table_name)
-            deserializer = RowToPythonRecord(table=table)
+            deserializer = ToPythonDict(table=table)
             rows = [deserializer(r) for r in rows]
 
         return rows
@@ -488,7 +484,7 @@ class BaseClient(HttpClient):
         # to python data type
         table = await self.get_table(table_name)
         if deserialize:
-            deserializer = RowToPythonRecord(table=table)
+            deserializer = ToPythonDict(table=table)
             rows = [deserializer(r) for r in rows]
 
         return rows

@@ -1,2 +1,2 @@
 # plantable
-Server for SeaTable Webhook
+SeaTable Python Client

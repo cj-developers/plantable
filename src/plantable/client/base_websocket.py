@@ -95,12 +95,12 @@ class BaseWebsocketClient(socketio.Client):
 
     def on_update(self, data, index, *args):
         print(f"{datetime.now()} [ SeaTable SocketIO on UPDATE_DTABLE ]")
-        print(data)
+        print(data, index, *args)
 
     def on_notification(self, data, index, *args):
         """Default is print received data You can overwrite this event"""
         print(f"{datetime.now()} [ SeaTable SocketIO on NEW_NOTIFICATION ]")
-        print(data)
+        print(data, index, *args)
 
     # override _handle_disconnect
     def _handle_disconnect(self, namespace):

@@ -358,9 +358,30 @@ class BaseClient(HttpClient):
         return results
 
     # (CUSTOM) Upsert Rows
-    async def upsert_rows(self, table_name: str, rows: List[dict], key_column: str):
-        key_map = await self.query_key_map(table_name=table_name, key_column=key_column)
-        # [TODO!]
+    async def upsert_rows(self, table_name: str, rows: List[dict], key_column: str = None):
+        if not key_column:
+            table = await self.get_table(table_name=table_name)
+            key_column = table.columns[0].name
+
+        row_id_map = await self.generate_row_id_map(table_name=table_name, key_column=key_column)
+
+        rows_to_update = list()
+        rows_to_append = list()
+        for row in rows:
+            if row[key_column] in row_id_map:
+                rows_to_update.append({"row_id": row_id_map[row[key_column]], "row": row})
+            else:
+                rows_to_append.append(row)
+
+        results = dict()
+        if rows_to_update:
+            results_update = await self.update_rows(table_name=table_name, updates=rows_to_update)
+            results.update({"update_rows": results_update})
+        if rows_to_append:
+            results_append = await self.append_rows(table_name=table_name, rows=rows_to_append)
+            results.update({"append_rows": results_append})
+
+        return results
 
     # Delete Rows
     async def delete_rows(self, table_name: str, row_ids: List[str]):
@@ -399,9 +420,9 @@ class BaseClient(HttpClient):
     # (CUSTOM) QUERY
     ################################################################
     # (CUSTOM) Query Key Map
-    async def query_key_map(self, table_name: str, key_column: str):
-        results = await self.query(table_name=table_name, columns=[key_column])
-        return {v[key_column]: k for k, v in results.items()}
+    async def generate_row_id_map(self, table_name: str, key_column: str):
+        results = await self.read_table(table_name=table_name, columns=["_id", key_column])
+        return {r[key_column]: r["_id"] for r in results}
 
     # (CUSTOM) read_table
     async def read_table(
@@ -418,24 +439,23 @@ class BaseClient(HttpClient):
         LIMIT = 100
         OFFSET = 0
 
-        # Helper
-        def to_str_datetime(x):
-            return x.isoformat(timespec="milliseconds")
-
         # correct args
         table = PikaTable(table_name)
-        columns = ["*"] if not columns else [x.strip() for x in columns.split(",")]
+        if not columns:
+            columns = ["*"]
+        if not isinstance(columns, list):
+            columns = [x.strip() for x in columns.split(",")]
         _limit = min(LIMIT, limit) if limit else limit
         _offset = offset if offset else OFFSET
 
         q = PikaQuery.from_(table).select(*columns)
         if modified_before:
             if isinstance(modified_before, datetime):
-                modified_before = to_str_datetime(modified_before)
+                modified_before = modified_before.isoformat(timespec="milliseconds")
             q = q.where(table[mtime] < modified_before)
         if modified_after:
             if isinstance(modified_after, datetime):
-                modified_after = to_str_datetime(modified_after)
+                modified_after = modified_after.isoformat(timespec="milliseconds")
             q = q.where(table[mtime] > modified_after)
         q = q.limit(_limit or LIMIT)
 
@@ -453,9 +473,7 @@ class BaseClient(HttpClient):
 
         # to python data type
         if deserialize:
-            # [NOTE] table은 table metadata(schema)를 의미
-            table = await self.get_table(table_name)
-            deserializer = ToPythonDict(table=table)
+            deserializer = await self.generate_deserializer(table_name=table_name)
             rows = [deserializer(r) for r in rows]
 
         return rows
@@ -482,12 +500,17 @@ class BaseClient(HttpClient):
         )
 
         # to python data type
-        table = await self.get_table(table_name)
         if deserialize:
-            deserializer = ToPythonDict(table=table)
+            deserializer = await self.generate_deserializer(table_name=table_name)
             rows = [deserializer(r) for r in rows]
 
         return rows
+
+    # (CUSTOM) Generate Deserializer
+    async def generate_deserializer(self, table_name):
+        table = await self.get_table(table_name)
+        users = await self.list_collaborators() if "collaborator" in [c.type for c in table.columns] else None
+        return ToPythonDict(table=table, users=users)
 
     ################################################################
     # LINKS

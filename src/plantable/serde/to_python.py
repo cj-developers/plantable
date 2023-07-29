@@ -18,11 +18,16 @@ class ToPythonDict:
     def __init__(self, table: Table, users: dict = None):
         self.table = table
         self.users = users
+
         self.columns = {
             **{column.name: {"column_type": column.type, "column_data": column.data} for column in table.columns},
             **SYSTEM_FIELDS,
         }
-        self.key_map = {column.key: column.name for column in table.columns}
+
+        self.user_map = (
+            {user.email: f"{user.name} ({user.contact_email})" for user in self.users} if self.users else None
+        )
+        self.row_id_map = {column.key: column.name for column in table.columns}
 
     def __call__(self, row):
         return {
@@ -104,13 +109,15 @@ class ToPythonDict:
                 if not isinstance(value, list):
                     value = [value]
                 value = [getattr(self, data["array_type"])(x, array_data) for x in value]
-            link_column = self.columns[self.key_map[data["link_column_key"]]]
+            link_column = self.columns[self.row_id_map[data["link_column_key"]]]
             if not link_column["column_data"]["is_multiple"]:
                 value = value[0]
         return value
 
     def user(self, user: str):
-        return self.user[user] if self.users and user in self.users else user
+        if not self.user_map:
+            return user
+        return self.user_map[user]
 
     def collaborator(self, value: List[str], data: dict = None) -> List[str]:
         return [self.user(x) for x in value]

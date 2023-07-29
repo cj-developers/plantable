@@ -57,11 +57,15 @@ class ToPythonDict:
         return value
 
     def number(self, value: Union[int, float], data: dict = None) -> Union[int, float]:
+        if not value:
+            return value
         if data and data.get("enable_precision") and data["precision"] == 0:
             return int(value)
         return float(value)
 
     def date(self, value: str, data: dict = None) -> datetime:
+        if not value:
+            return value
         if value.endswith("Z"):
             value = value.replace("Z", "+00:00", 1)
         try:
@@ -120,6 +124,8 @@ class ToPythonDict:
         return self.user_map[user]
 
     def collaborator(self, value: List[str], data: dict = None) -> List[str]:
+        if not value:
+            return value
         return [self.user(x) for x in value]
 
     def creator(self, value: str, data: dict = None) -> str:

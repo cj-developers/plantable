@@ -1,10 +1,12 @@
 import asyncio
 import logging
+import time
 from datetime import datetime
-from typing import List, Union
+from typing import Callable, List, Union
 
 import pandas as pd
 import requests
+import socketio
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from pypika import MySQLQuery as PikaQuery
@@ -47,13 +49,13 @@ class BaseClient(HttpClient):
         base_token: Union[BaseToken, str] = None,
         api_token: str = None,
     ):
-        super().__init__(seatable_url=seatable_url)
+        super().__init__(seatable_url=seatable_url.rstrip("/"))
 
         self.base_token = base_token
         self.api_token = api_token
 
         if api_token:
-            auth_url = self.seatable_url.rstrip("/") + "/api/v2.1/dtable/app-access-token/"
+            auth_url = self.seatable_url + "/api/v2.1/dtable/app-access-token/"
             response = requests.get(auth_url, headers={"Authorization": f"Token {self.api_token}"})
             try:
                 response.raise_for_status()
@@ -752,3 +754,4 @@ class BaseClient(HttpClient):
     ################################################################
     # SNAPSHOTS
     ################################################################
+    # TBD

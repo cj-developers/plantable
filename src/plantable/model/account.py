@@ -31,7 +31,7 @@ class Admin(_Model):
     email: str  # '2926d3fa3a364558bac8a550811dbe0e@auth.local'
     name: str  # 'admin'
     contact_email: str  # 'woojin.cho@gmail.com'
-    login_id: str  # ''
+    login_id: str = None  # ''
     is_staff: bool  # True
     is_active: bool  # True
     storage_usage: int  # 0

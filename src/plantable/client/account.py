@@ -5,6 +5,7 @@ from typing import List, Union
 
 import aiohttp
 import orjson
+import requests
 from pydantic import BaseModel
 from tabulate import tabulate
 
@@ -37,22 +38,21 @@ class AccountClient(HttpClient):
         seatable_url: str = SEATABLE_URL,
         seatable_username: str = SEATABLE_USERNAME,
         seatable_password: str = SEATABLE_PASSWORD,
-        account_token: str = SEATABLE_ACCOUNT_TOKEN,
     ):
         super().__init__(seatable_url=seatable_url)
         self.username = seatable_username
         self.password = seatable_password
-        self.account_token = account_token
+        self.account_token = None
 
-    async def login(self):
-        async with self.session_maker() as session:
-            response = await self.request(
-                session=session,
-                method="POST",
-                url="/api2/auth-token/",
-                json={"username": self.username, "password": self.password},
-            )
-        self.account_token = response["token"]
+        # do login
+        self.login()
+
+    def login(self):
+        auth_url = self.seatable_url + "/api2/auth-token/"
+        response = requests.post(auth_url, json={"username": self.username, "password": self.password})
+        response.raise_for_status()
+        results = response.json()
+        self.account_token = results["token"]
 
     ################################################################
     # AUTHENTICATION - API TOKEN

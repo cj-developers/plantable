@@ -163,28 +163,28 @@ class BaseClient(HttpClient):
     # (CUSTOM) ls
     async def ls(self, table_name: str = None):
         metadata = await self.get_metadata()
-        tables = metadata["tables"]
+        tables = metadata.tables
         if table_name:
             for table in tables:
-                if table["name"] == table_name:
+                if table.name == table_name:
                     break
             else:
                 raise KeyError()
-            columns = [{"key": c["key"], "name": c["name"], "type": c["type"]} for c in table["columns"]]
+            columns = [{"key": c.key, "name": c.name, "type": c.type} for c in table.columns]
             print(tabulate(columns, **TABULATE_CONF))
             return
         _tables = list()
         for table in tables:
-            _n = len(table["columns"])
-            _columns = ", ".join(c["name"] for c in table["columns"])
+            _n = len(table.columns)
+            _columns = ", ".join(c.name for c in table.columns)
             if len(_columns) > 50:
                 _columns = _columns[:50] + "..."
             _columns += f" ({_n})"
             _tables += [
                 {
-                    "id": table["_id"],
-                    "name": table["name"],
-                    "views": ", ".join([v["name"] for v in table["views"]]),
+                    "id": table.id,
+                    "name": table.name,
+                    "views": ", ".join([v.name for v in table.views]),
                     "columns": _columns,
                 },
             ]

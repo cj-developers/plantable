@@ -681,7 +681,7 @@ class AdminClient(AccountClient):
         return response
 
     ################################################################
-    # CUSTOM
+    # OVERRIDE ACCOUNT CLIENT
     ################################################################
     async def infer_workspace_id(self, group_name_or_id: Union[str, int]):
         bases = await self.list_group_bases(group_name_or_id)
@@ -692,6 +692,28 @@ class AdminClient(AccountClient):
             if workspace_id != base.workspace_id:
                 raise KeyError("workspace id is not unique!")
         return workspace_id
+
+    async def get_or_create_api_token(
+        self, group_name_or_id: str, base_name: str, app_name: str, permission: str = "rw"
+    ):
+        workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
+        return await super().get_or_create_api_token(
+            workspace_id=workspace_id, base_name=base_name, app_name=app_name, permission=permission
+        )
+
+    async def update_api_token(self, group_name_or_id: str, base_name: str, app_name: str, permission: str = "rw"):
+        workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
+        return await super().update_api_token(
+            workspace_id=workspace_id, base_name=base_name, app_name=app_name, permission=permission
+        )
+
+    async def delete_api_token(self, group_name_or_id: str, base_name: str, app_name: str):
+        workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
+        return await super().delete_api_token(workspace_id=workspace_id, base_name=base_name, app_name=app_name)
+
+    async def create_temp_api_token(self, group_name_or_id: str, base_name: str):
+        workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
+        return await super().create_temp_api_token(workspace_id=workspace_id, base_name=base_name)
 
     async def get_base_client_with_account_token(self, group_name_or_id: Union[str, int], base_name: str):
         members = await self.list_group_members(name_or_id=group_name_or_id)

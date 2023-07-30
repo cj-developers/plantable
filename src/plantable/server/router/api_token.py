@@ -1,10 +1,12 @@
+import aioboto3
 from fastapi import APIRouter, Depends
 from fastapi.security import APIKeyHeader
 
 from ...client import BaseClient
-from ..conf import session
-from ..util import view_to_parquet, upload_to_s3
+from ..util import upload_to_s3, view_to_parquet
+from ..conf import AIOBOTO3_CONF
 
+session = aioboto3.Session(**AIOBOTO3_CONF)
 router = APIRouter(prefix="/api-token", tags=["ApiTokenClient"])
 
 api_key_header = APIKeyHeader(name="Token")

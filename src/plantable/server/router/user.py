@@ -1,12 +1,14 @@
 from typing import Annotated
 
+import aioboto3
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from ...client import UserClient
-from ..conf import session
-from ..util import view_to_parquet, upload_to_s3
+from ..conf import AIOBOTO3_CONF
+from ..util import upload_to_s3, view_to_parquet
 
+session = aioboto3.Session(**AIOBOTO3_CONF)
 router = APIRouter(prefix="/user", tags=["UserClient"])
 security = HTTPBasic()
 

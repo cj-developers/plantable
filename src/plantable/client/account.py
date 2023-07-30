@@ -8,12 +8,6 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from .conf import (
-    SEATABLE_ACCOUNT_TOKEN,
-    SEATABLE_PASSWORD,
-    SEATABLE_URL,
-    SEATABLE_USERNAME,
-)
 from ..model import (
     DTABLE_ICON_COLORS,
     DTABLE_ICON_LIST,
@@ -28,6 +22,7 @@ from ..model import (
     Webhook,
 )
 from .base import BaseClient
+from .conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_PASSWORD, SEATABLE_URL, SEATABLE_USERNAME
 from .core import TABULATE_CONF, HttpClient
 
 logger = logging.getLogger()
@@ -43,14 +38,11 @@ class AccountClient(HttpClient):
         seatable_username: str = SEATABLE_USERNAME,
         seatable_password: str = SEATABLE_PASSWORD,
         account_token: str = SEATABLE_ACCOUNT_TOKEN,
-        api_token: str = None,
     ):
         super().__init__(seatable_url=seatable_url)
         self.username = seatable_username
         self.password = seatable_password
         self.account_token = account_token
-        self.api_token = api_token
-        self.base_tokens = dict()
 
     async def login(self):
         async with self.session_maker() as session:

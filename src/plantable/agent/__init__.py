@@ -1,1 +1,1 @@
-from .producer import SeatableWatcher
+from .watcher.base_watcher import SeatableBaseWatcher

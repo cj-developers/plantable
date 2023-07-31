@@ -5,7 +5,7 @@ from plantable.client import AdminClient, BaseWebsocketClient
 
 
 # Seatable Watcher
-class SeatableWatcher:
+class SeatableBaseWatcher:
     def __init__(
         self,
         seatable_url: str,

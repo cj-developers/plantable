@@ -44,7 +44,9 @@ class HttpClient:
 
     async def info(self):
         async with self.session_maker() as session:
-            return await self.request(session=session, method="GET", url="/server-info/")
+            return await self.request(
+                session=session, method="GET", url="/server-info/"
+            )
 
     async def ping(self):
         async with self.session_maker() as session:
@@ -95,7 +97,9 @@ class HttpClient:
                         content += data
                     if len(content) != response.content_length:
                         raise ValueError()
-                    return File(filename=response.content_disposition.filename, content=content)
+                    return File(
+                        filename=response.content_disposition.filename, content=content
+                    )
 
             except Exception as ex:
                 raise ex

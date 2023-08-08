@@ -102,9 +102,13 @@ class BaseWebsocketClient(socketio.AsyncClient):
         results = await self.request("POST", url=url, payload=payload)
         return results["token"]
 
-    async def request(self, method: str, url: str, headers: dict = None, payload: dict = None):
+    async def request(
+        self, method: str, url: str, headers: dict = None, payload: dict = None
+    ):
         async with aiohttp.ClientSession(base_url=self.seatable_url) as session:
-            async with session.request(method=method, url=url, headers=headers, json=payload) as response:
+            async with session.request(
+                method=method, url=url, headers=headers, json=payload
+            ) as response:
                 response.raise_for_status()
                 results = await response.json()
         return results

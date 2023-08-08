@@ -28,6 +28,7 @@ from .conf import (
     SEATABLE_URL,
     SEATABLE_USERNAME,
 )
+from .base import BaseClient
 from .core import TABULATE_CONF, HttpClient
 
 logger = logging.getLogger()
@@ -245,9 +246,6 @@ class AccountClient(HttpClient):
     async def get_base_client_with_account_token(
         self, workspace_id: str, base_name: str
     ):
-        # 특정 환경에서 Circular Import 문제 발생하여 이곳에서 BaseClient Load
-        from .base import BaseClient
-
         base_token = await self.get_base_token_with_account_token(
             workspace_id=workspace_id, base_name=base_name
         )

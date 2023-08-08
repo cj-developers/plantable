@@ -1,1 +1,1 @@
-from .client import AdminClient, UserClient
+from .client import AdminClient, BaseClient, UserClient

@@ -16,8 +16,12 @@ security = HTTPBasic()
 ################################################################
 # Basic Auth
 ################################################################
-async def get_user_client(credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
-    uc = UserClient(seatable_username=credentials.username, seatable_password=credentials.password)
+async def get_user_client(
+    credentials: Annotated[HTTPBasicCredentials, Depends(security)]
+):
+    uc = UserClient(
+        seatable_username=credentials.username, seatable_password=credentials.password
+    )
     try:
         _ = await uc.login()
     except Exception as ex:
@@ -36,7 +40,9 @@ async def get_user_client(credentials: Annotated[HTTPBasicCredentials, Depends(s
 ################################################################
 # My SeaTable Account Info
 @router.get("/info")
-async def info_my_seatable_account(user_client: Annotated[dict, Depends(get_user_client)]):
+async def info_my_seatable_account(
+    user_client: Annotated[dict, Depends(get_user_client)]
+):
     return await user_client.get_account_info()
 
 
@@ -54,7 +60,9 @@ async def export_view_to_s3_with_parquet(
     base_client = await user_client.get_base_client_with_account_token(
         workspace_name_or_id=workspace_name, base_name=base_name
     )
-    content = await view_to_parquet(client=base_client, table_name=table_name, view_name=view_name)
+    content = await view_to_parquet(
+        client=base_client, table_name=table_name, view_name=view_name
+    )
 
     return await upload_to_s3(
         session=session,

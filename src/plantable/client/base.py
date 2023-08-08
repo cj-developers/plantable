@@ -202,7 +202,10 @@ class BaseClient(HttpClient):
         """
         METHOD = "POST"
         URL = f"/dtable-db/api/v1/query/{self.base_token.dtable_uuid}/"
-        JSON = {"sql": sql.get_sql() if isinstance(sql, QueryBuilder) else sql, "convert_keys": convert_keys}
+        JSON = {
+            "sql": sql.get_sql() if isinstance(sql, QueryBuilder) else sql,
+            "convert_keys": convert_keys,
+        }
         SUCCESS = "success"
         ITEM = "results"
 
@@ -283,14 +286,23 @@ class BaseClient(HttpClient):
 
     # Add Row
     async def add_row(
-        self, table_name: str, row: dict, anchor_row_id: str = None, row_insert_position: str = "insert_below"
+        self,
+        table_name: str,
+        row: dict,
+        anchor_row_id: str = None,
+        row_insert_position: str = "insert_below",
     ):
         # insert_below or insert_above
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
         JSON = {"table_name": table_name, "row": row}
         if anchor_row_id:
-            JSON.update({"ahchor_row_id": anchor_row_id, "row_insert_position": row_insert_position})
+            JSON.update(
+                {
+                    "ahchor_row_id": anchor_row_id,
+                    "row_insert_position": row_insert_position,
+                }
+            )
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
@@ -597,7 +609,12 @@ class BaseClient(HttpClient):
 
     # Create View
     async def create_view(
-        self, table_name: str, name: str, type: str = "table", is_locked: bool = False, model: BaseModel = View
+        self,
+        table_name: str,
+        name: str,
+        type: str = "table",
+        is_locked: bool = False,
+        model: BaseModel = View,
     ):
         """
         type: "table" or "archive" (bigdata)
@@ -611,7 +628,13 @@ class BaseClient(HttpClient):
         }
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON, table_name=table_name)
+            results = await self.request(
+                session=session,
+                method=METHOD,
+                url=URL,
+                json=JSON,
+                table_name=table_name,
+            )
 
         if model:
             results = model(**results)
@@ -647,7 +670,13 @@ class BaseClient(HttpClient):
             conf = conf.dict()
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=conf, table_name=table_name)
+            results = await self.request(
+                session=session,
+                method=METHOD,
+                url=URL,
+                json=conf,
+                table_name=table_name,
+            )
 
         return results
 

@@ -428,7 +428,10 @@ class AdminClient(AccountClient):
 
     # Reorder Your Groups
     async def reorder_group(
-        self, name_or_id: Union[str, int], anchor_group_name_or_id: Union[str, int] = None, to_last: bool = False
+        self,
+        name_or_id: Union[str, int],
+        anchor_group_name_or_id: Union[str, int] = None,
+        to_last: bool = False,
     ):
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
@@ -470,7 +473,12 @@ class AdminClient(AccountClient):
         return results
 
     # Add Group Members
-    async def add_group_members(self, name_or_id: Union[str, int], user_emails: List[str], model: BaseModel = None):
+    async def add_group_members(
+        self,
+        name_or_id: Union[str, int],
+        user_emails: List[str],
+        model: BaseModel = None,
+    ):
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
             name_or_id = group.id
@@ -694,17 +702,33 @@ class AdminClient(AccountClient):
         return workspace_id
 
     async def get_or_create_api_token(
-        self, group_name_or_id: str, base_name: str, app_name: str, permission: str = "rw"
+        self,
+        group_name_or_id: str,
+        base_name: str,
+        app_name: str,
+        permission: str = "rw",
     ):
         workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
         return await super().get_or_create_api_token(
-            workspace_id=workspace_id, base_name=base_name, app_name=app_name, permission=permission
+            workspace_id=workspace_id,
+            base_name=base_name,
+            app_name=app_name,
+            permission=permission,
         )
 
-    async def update_api_token(self, group_name_or_id: str, base_name: str, app_name: str, permission: str = "rw"):
+    async def update_api_token(
+        self,
+        group_name_or_id: str,
+        base_name: str,
+        app_name: str,
+        permission: str = "rw",
+    ):
         workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
         return await super().update_api_token(
-            workspace_id=workspace_id, base_name=base_name, app_name=app_name, permission=permission
+            workspace_id=workspace_id,
+            base_name=base_name,
+            app_name=app_name,
+            permission=permission,
         )
 
     async def delete_api_token(self, group_name_or_id: str, base_name: str, app_name: str):

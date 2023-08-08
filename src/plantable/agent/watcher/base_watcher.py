@@ -65,10 +65,17 @@ class SeatableBaseWatcher:
                 if group_id not in self.tasks:
                     self.tasks[group_id] = dict()
                 for base_id, base_name in bases.items():
-                    if base_id not in self.tasks[group_id] or self.tasks[group_id][base_id].done():
+                    if (
+                        base_id not in self.tasks[group_id]
+                        or self.tasks[group_id][base_id].done()
+                    ):
                         try:
-                            ws = await self.create_websocket(group_id=group_id, base_name=base_name)
-                            self.tasks[group_id][base_id] = asyncio.create_task(ws.run())
+                            ws = await self.create_websocket(
+                                group_id=group_id, base_name=base_name
+                            )
+                            self.tasks[group_id][base_id] = asyncio.create_task(
+                                ws.run()
+                            )
                             print(f"task {group_id}/{base_id} registered!")
                         except Exception as ex:
                             print(f"ERROR - {group_id}/{base_id} - {ex}")

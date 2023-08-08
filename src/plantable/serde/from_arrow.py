@@ -7,8 +7,14 @@ from .const import SYSTEM_FIELDS
 CHECKBOX = {"column_type": "checkbox"}
 TEXT = {"column_type": "text"}
 LONG_TEXT = {"column_type": "long-text"}
-INTEGER = {"column_type": "number", "column_data": {"format": "number", "decimal": "dot", "thousands": "comma"}}
-NUMBER = {"column_type": "number", "column_data": {"format": "number", "decimal": "dot", "thousands": "comma"}}
+INTEGER = {
+    "column_type": "number",
+    "column_data": {"format": "number", "decimal": "dot", "thousands": "comma"},
+}
+NUMBER = {
+    "column_type": "number",
+    "column_data": {"format": "number", "decimal": "dot", "thousands": "comma"},
+}
 DURATION = {"column_type": "duration", "column_data": {"format": "h:mm:ss"}}
 DATE = {"column_type": "date", "column_data": {"format": "YYYY-MM-DD"}}
 DATETIME = {"column_type": "date", "column_data": {"format": "YYYY-MM-DD HH:mm"}}
@@ -78,13 +84,19 @@ class FromArrowTable:
                 return r.named
 
     def get_rows_for_append(self):
-        return [{k: v for k, v in r.items() if k not in SYSTEM_FIELDS} for r in self.tbl.to_pylist()]
+        return [
+            {k: v for k, v in r.items() if k not in SYSTEM_FIELDS}
+            for r in self.tbl.to_pylist()
+        ]
 
     def get_rows_for_update(self, row_id_field: str = "_id"):
         updates = list()
         for row in self.tbl.to_pylist():
             updates.append(
-                {"row_id": row[row_id_field], "row": {k: v for k, v in row.items() if k not in SYSTEM_FIELDS}}
+                {
+                    "row_id": row[row_id_field],
+                    "row": {k: v for k, v in row.items() if k not in SYSTEM_FIELDS},
+                }
             )
         return updates
 

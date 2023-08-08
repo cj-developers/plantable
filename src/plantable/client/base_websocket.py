@@ -86,13 +86,19 @@ class BaseWebsocketClient(socketio.AsyncClient):
     async def create_temp_api_token(self):
         url = f"/api/v2.1/workspace/{self.workspace_id}/dtable/{self.base_name}/temp-api-token/"
         account_token = await self.get_account_token()
-        headers = {"accept": "application/json", "authorization": f"Token {account_token}"}
+        headers = {
+            "accept": "application/json",
+            "authorization": f"Token {account_token}",
+        }
         results = await self.request("GET", url=url, headers=headers)
         return results["api_token"]
 
     async def get_account_token(self):
         url = "/api2/auth-token/"
-        payload = {"username": self.seatable_username, "password": self.seatable_password}
+        payload = {
+            "username": self.seatable_username,
+            "password": self.seatable_password,
+        }
         results = await self.request("POST", url=url, payload=payload)
         return results["token"]
 

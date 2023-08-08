@@ -20,20 +20,25 @@ class ToPythonDict:
         self.users = users
 
         self.columns = {
-            **{column.name: {"column_type": column.type, "column_data": column.data} for column in table.columns},
+            **{
+                column.name: {"column_type": column.type, "column_data": column.data}
+                for column in table.columns
+            },
             **SYSTEM_FIELDS,
         }
 
         self.user_map = (
-            {user.email: f"{user.name} ({user.contact_email})" for user in self.users} if self.users else None
+            {user.email: f"{user.name} ({user.contact_email})" for user in self.users}
+            if self.users
+            else None
         )
         self.row_id_map = {column.key: column.name for column in table.columns}
 
     def __call__(self, row):
         return {
-            column: getattr(self, self.columns[column]["column_type"].replace("-", "_"))(
-                value=row[column], data=self.columns[column].get("column_data")
-            )
+            column: getattr(
+                self, self.columns[column]["column_type"].replace("-", "_")
+            )(value=row[column], data=self.columns[column].get("column_data"))
             for column in self.columns
             if column in row
         }
@@ -112,7 +117,9 @@ class ToPythonDict:
                 array_data = data.get("array_data")
                 if not isinstance(value, list):
                     value = [value]
-                value = [getattr(self, data["array_type"])(x, array_data) for x in value]
+                value = [
+                    getattr(self, data["array_type"])(x, array_data) for x in value
+                ]
             link_column = self.columns[self.row_id_map[data["link_column_key"]]]
             if not link_column["column_data"]["is_multiple"]:
                 value = value[0]

@@ -332,7 +332,9 @@ class Workspace(_Model):
             "type": self.type,
             "workspace_id": self.id,
             "workspace": self.name,
-            "folders": [x["name"] for x in self.folders] if self.folders else self.folders,
+            "folders": [x["name"] for x in self.folders]
+            if self.folders
+            else self.folders,
             "bases": [x.name for x in bases] if bases else bases,
         }
 

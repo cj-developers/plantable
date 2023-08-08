@@ -25,7 +25,9 @@ async def get_base_client(api_token: str = Depends(api_key_header)) -> BaseClien
 ################################################################
 # My API Token
 @router.get("/info")
-async def info_my_seatable_api_token(base_client: BaseClient = Depends(get_base_client)) -> dict:
+async def info_my_seatable_api_token(
+    base_client: BaseClient = Depends(get_base_client),
+) -> dict:
     return base_client.base_token
 
 
@@ -40,7 +42,9 @@ async def export_view_to_s3_with_parquet(
     prod: bool = False,
     base_client: BaseClient = Depends(get_base_client),
 ):
-    content = await view_to_parquet(client=base_client, table_name=table_name, view_name=view_name)
+    content = await view_to_parquet(
+        client=base_client, table_name=table_name, view_name=view_name
+    )
 
     return await upload_to_s3(
         session=session,

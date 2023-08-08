@@ -35,8 +35,14 @@ SCHEMA_MAP = {
 
 STR = {"column_type": "text"}
 LONGTEXT = {"column_type": "long-text"}
-INT = {"column_type": "number", "data": {"format": "number", "decimal": "dot", "thousands": "comma"}}
-FLOAT = {"column_type": "number", "data": {"format": "number", "decimal": "dot", "thousands": "comma"}}
+INT = {
+    "column_type": "number",
+    "data": {"format": "number", "decimal": "dot", "thousands": "comma"},
+}
+FLOAT = {
+    "column_type": "number",
+    "data": {"format": "number", "decimal": "dot", "thousands": "comma"},
+}
 DATETIME = {"column_type": "date", "data": {"format": "YYYY-MM-DD HH:mm"}}
 BOOL = {"column_type": "checkbox"}
 

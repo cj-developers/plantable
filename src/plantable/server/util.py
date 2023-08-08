@@ -11,7 +11,11 @@ from .conf import AWS_S3_BUCKET_NAME, AWS_S3_BUCKET_PREFIX, DEV, PROD
 
 # Generate Filename
 def generate_filename(
-    workspace_name: str, base_name: str, table_name: str, view_name: str = None, format: str = "parquet"
+    workspace_name: str,
+    base_name: str,
+    table_name: str,
+    view_name: str = None,
+    format: str = "parquet",
 ):
     names = [workspace_name, base_name, table_name]
     if view_name:
@@ -30,7 +34,14 @@ def generate_obj_key(
     group: str = None,
     aws_s3_bucket_prefix: str = AWS_S3_BUCKET_PREFIX,
 ) -> str:
-    keys = [aws_s3_bucket_prefix, format, PROD if prod else DEV, workspace_name, base_name, table_name]
+    keys = [
+        aws_s3_bucket_prefix,
+        format,
+        PROD if prod else DEV,
+        workspace_name,
+        base_name,
+        table_name,
+    ]
 
     # append prefix
     if group:
@@ -58,7 +69,9 @@ def pylist_to_parquet(records: List[dict], version: str = "1.0") -> bytes:
 
 
 # Read Table using BaseClient as Parquet
-async def table_to_parquet(client: BaseClient, table_name: str, modified_before: str, modified_after: str):
+async def table_to_parquet(
+    client: BaseClient, table_name: str, modified_before: str, modified_after: str
+):
     records = await client.read_table(
         table_name=table_name,
         modified_before=modified_before,

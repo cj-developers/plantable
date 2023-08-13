@@ -1,1 +1,1 @@
-from .watcher.base_watcher import SeatableBaseWatcher
+from .watcher import Watcher

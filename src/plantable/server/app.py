@@ -4,7 +4,6 @@ from typing import Annotated
 from fastapi import Depends, FastAPI
 
 from . import router
-
 from .conf import AWS_S3_BUCKET_NAME, DEV, PROD
 from .util import generate_obj_key
 

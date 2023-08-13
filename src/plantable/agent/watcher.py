@@ -1,18 +1,24 @@
 import asyncio
+import logging
 from typing import Callable
 
-from plantable.client import AdminClient, BaseWebsocketClient
+from plantable.client import AdminClient
+
+from .conf import SEATABLE_PASSWORD, SEATABLE_URL, SEATABLE_USERNAME
+from .websocket_client import BaseWebsocketClient
+
+logger = logging.getLogger(__file__)
 
 
 # Seatable Watcher
-class SeatableBaseWatcher:
+class Watcher:
     def __init__(
         self,
-        seatable_url: str,
-        seatable_username: str,
-        seatable_password: str,
+        seatable_url: str = SEATABLE_URL,
+        seatable_username: str = SEATABLE_USERNAME,
+        seatable_password: str = SEATABLE_PASSWORD,
         handler: Callable = None,
-        wait_for: float = 10,
+        wait_for: float = 10.0,
     ):
         self.seatable_url = seatable_url
         self.seatable_username = seatable_username
@@ -30,14 +36,13 @@ class SeatableBaseWatcher:
 
     # run
     async def run(self, debug: bool = False):
-        await self.client.login()
         try:
             await self.watch(debug=debug)
         except asyncio.CancelledError() as ex:
             raise ex
 
     # list views with name
-    async def watch(self, debug: bool = False, wait_for: float = 5.0):
+    async def watch(self, debug: bool = False):
         while True:
             tasks = dict()
             groups = await self.client.list_groups()
@@ -65,17 +70,10 @@ class SeatableBaseWatcher:
                 if group_id not in self.tasks:
                     self.tasks[group_id] = dict()
                 for base_id, base_name in bases.items():
-                    if (
-                        base_id not in self.tasks[group_id]
-                        or self.tasks[group_id][base_id].done()
-                    ):
+                    if base_id not in self.tasks[group_id] or self.tasks[group_id][base_id].done():
                         try:
-                            ws = await self.create_websocket(
-                                group_id=group_id, base_name=base_name
-                            )
-                            self.tasks[group_id][base_id] = asyncio.create_task(
-                                ws.run()
-                            )
+                            ws = await self.create_websocket(group_id=group_id, base_name=base_name)
+                            self.tasks[group_id][base_id] = asyncio.create_task(ws.run())
                             print(f"task {group_id}/{base_id} registered!")
                         except Exception as ex:
                             print(f"ERROR - {group_id}/{base_id} - {ex}")
@@ -83,15 +81,14 @@ class SeatableBaseWatcher:
             if debug:
                 break
 
-            await asyncio.sleep(wait_for)
+            await asyncio.sleep(self.wait_for)
 
     # Create Websocket
     async def create_websocket(self, group_id: int, base_name: str):
-        workspace_id = await self.client.infer_workspace_id(group_name_or_id=group_id)
         return BaseWebsocketClient(
+            group_name_or_id=group_id,
+            base_name=base_name,
             seatable_url=self.seatable_url,
             seatable_username=self.seatable_username,
             seatable_password=self.seatable_password,
-            workspace_id=workspace_id,
-            base_name=base_name,
         )

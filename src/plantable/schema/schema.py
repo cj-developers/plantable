@@ -1,8 +1,9 @@
 import logging
 from datetime import datetime
 from typing import Any, List, Union
-from pydantic import BaseModel
+
 import pytz
+from pydantic import BaseModel
 
 from ..model import Table
 

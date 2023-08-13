@@ -12,10 +12,27 @@ def plantable():
 
 @plantable.command()
 def hello():
-    print("Hello, PlanTable!")
+    print("Hello, Plantable!")
 
 
 @plantable.command()
+def agent():
+    pass
+
+
+@agent.command()
+def watch():
+    from plantable.agent import Watcher
+
+    watcher = Watcher()
+
+
+@plantable.command()
+def server():
+    pass
+
+
+@server.command()
 @click.option("-h", "--host", type=str, default="0.0.0.0")
 @click.option("-p", "--port", type=int, default=3000)
 @click.option("--reload", is_flag=True)

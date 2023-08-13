@@ -45,9 +45,7 @@ class UserClient(AccountClient):
         self, workspace_name_or_id: Union[str, int] = None, base_name: str = None
     ):
         workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
-        return await super().get_base_client_with_account_token(
-            workspace_id=workspace.id, base_name=base_name
-        )
+        return await super().get_base_client_with_account_token(workspace_id=workspace.id, base_name=base_name)
 
     ################################################################
     # USER
@@ -87,18 +85,14 @@ class UserClient(AccountClient):
         return results
 
     # [USER] list public user info
-    async def list_public_user_info(
-        self, user_id_list: List[str], model: BaseModel = UserInfo
-    ):
+    async def list_public_user_info(self, user_id_list: List[str], model: BaseModel = UserInfo):
         METHOD = "POST"
         URL = "/api/v2.1/user-list/"
         JSON = {"user_id_list": user_id_list}
         ITEM = "user_list"
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
             results = response[ITEM]
 
         if model:
@@ -144,9 +138,7 @@ class UserClient(AccountClient):
         _ = DATA.add_field("color", color) if color else None
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, data=DATA
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, data=DATA)
             results = response[ITEM]
 
         if model:
@@ -175,9 +167,7 @@ class UserClient(AccountClient):
         _ = DATA.add_field("color", new_color) if new_color else None
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, data=DATA
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, data=DATA)
             results = response[ITEM]
 
         if model:
@@ -238,9 +228,7 @@ class UserClient(AccountClient):
         JSON = {"dtable_uuid": base.uuid}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
             results = response[ITEM]
 
         return results
@@ -253,9 +241,7 @@ class UserClient(AccountClient):
         PARAMS = {"dtable_uuid": base.uuid}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
             results = response[ITEM]
 
         return results
@@ -284,9 +270,7 @@ class UserClient(AccountClient):
     # GROUPS & WORKSPACES
     ################################################################
     # [GROUPS & WORKSPACES] list workspaces
-    async def list_workspaces(
-        self, detail: bool = True, incl: List[str] = None, model: BaseModel = Workspace
-    ) -> dict:
+    async def list_workspaces(self, detail: bool = True, incl: List[str] = None, model: BaseModel = Workspace) -> dict:
         """
         incl: "personal" or "group"
         """
@@ -296,9 +280,7 @@ class UserClient(AccountClient):
         PARAMS = {"detail": str(detail).lower()}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
             results = response[ITEM]
 
         if incl:
@@ -314,9 +296,7 @@ class UserClient(AccountClient):
         return results
 
     # [GROUPS & WORKSPACES] get workspace
-    async def get_workspace(
-        self, name_or_id: Union[str, int], workspace_type: str = "group"
-    ):
+    async def get_workspace(self, name_or_id: Union[str, int], workspace_type: str = "group"):
         """
         workspace_type: "group", "personal", "starred", or "shared"
         """
@@ -335,12 +315,8 @@ class UserClient(AccountClient):
     # (CUSTOM) LS & GET
     ################################################################
     # (custom) get
-    async def get(
-        self, workspace_name_or_id: str, base_name: str = None, table_name: str = None
-    ):
-        workspace_name_or_id, base_name, table_name = parse_name(
-            workspace_name_or_id, base_name, table_name
-        )
+    async def get(self, workspace_name_or_id: str, base_name: str = None, table_name: str = None):
+        workspace_name_or_id, base_name, table_name = parse_name(workspace_name_or_id, base_name, table_name)
 
         if table_name:
             bc = await self.get_base_client_with_account_token(
@@ -348,9 +324,7 @@ class UserClient(AccountClient):
             )
             return await bc.get_table(table_name=table_name)
         if base_name:
-            return await self.get_base(
-                workspace_name_or_id=workspace_name_or_id, base_name=base_name
-            )
+            return await self.get_base(workspace_name_or_id=workspace_name_or_id, base_name=base_name)
         return await self.get_workspace(name_or_id=workspace_name_or_id)
 
     # (custom) ls
@@ -407,12 +381,8 @@ class UserClient(AccountClient):
         src_base_name: str,
         dst_workspace_name_or_id: str,
     ) -> dict:
-        src_workspace = await self.get_workspace(
-            workspace_name_or_id=src_workspace_name_or_id
-        )
-        dst_workspace = await self.get_workspace(
-            workspace_name_or_id=dst_workspace_name_or_id
-        )
+        src_workspace = await self.get_workspace(workspace_name_or_id=src_workspace_name_or_id)
+        dst_workspace = await self.get_workspace(workspace_name_or_id=dst_workspace_name_or_id)
 
         METHOD = "POST"
         URL = f"/api/v2.1/dtable-copy/"
@@ -424,9 +394,7 @@ class UserClient(AccountClient):
         ITEM = "dtable"
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
             results = response[ITEM]
 
         return results
@@ -445,9 +413,7 @@ class UserClient(AccountClient):
         ITEM = "dtable"
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
             results = response[ITEM]
 
         return results
@@ -537,9 +503,7 @@ class UserClient(AccountClient):
             "file": file,
             "dtable_uuid": base_uuid,
             "table_name": table_name,
-            "selected_columns": ",".join(selected_columns)
-            if isinstance(selected_columns, list)
-            else selected_columns,
+            "selected_columns": ",".join(selected_columns) if isinstance(selected_columns, list) else selected_columns,
         }
         raise NotImplementedError
 
@@ -553,9 +517,7 @@ class UserClient(AccountClient):
         PARAMS = {"dtable_name": base_name}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
 
         return response
 
@@ -578,9 +540,7 @@ class UserClient(AccountClient):
         }
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
 
         return response
 
@@ -626,16 +586,12 @@ class UserClient(AccountClient):
         }
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, **PARAMS
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
 
         return response
 
     # (CUSTOM) Export View by Name
-    async def export_view_by_name(
-        self, workspace_name_or_id: int, base_name: str, table_name: str, view_name: str
-    ):
+    async def export_view_by_name(self, workspace_name_or_id: int, base_name: str, table_name: str, view_name: str):
         table_id, view_id = await self.get_ids_by_names(
             workspace_name_or_id=workspace_name_or_id,
             base_name=base_name,
@@ -717,9 +673,7 @@ class UserClient(AccountClient):
         return results
 
     # List Group Shares
-    async def list_tables_shared_to_group(
-        self, workspace_name_or_id: Union[str, int], base_name: str
-    ):
+    async def list_tables_shared_to_group(self, workspace_name_or_id: Union[str, int], base_name: str):
         workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace.id}/dtable/{base_name}/group-shares/"
@@ -817,9 +771,7 @@ class UserClient(AccountClient):
         ITEM = "webhook"
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
             results = response[ITEM]
 
         if model:
@@ -843,15 +795,11 @@ class UserClient(AccountClient):
         JSON = {"url": url, "secret": str(secret)}
 
         async with self.session_maker(token=self.account_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, json=JSON
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
             print(response)
 
     # [WEBHOOKS] delete webhook
-    async def delete_webhook(
-        self, workspace_name_or_id: Union[str, int], base_name: str, webhook_id: str
-    ):
+    async def delete_webhook(self, workspace_name_or_id: Union[str, int], base_name: str, webhook_id: str):
         workspace = await self.get_workspace(name_or_id=workspace_name_or_id)
 
         METHOD = "DELETE"

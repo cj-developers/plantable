@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends
 from fastapi.security import APIKeyHeader
 
 from ...client import BaseClient
-from ..util import upload_to_s3, view_to_parquet
 from ..conf import AIOBOTO3_CONF
+from ..util import upload_to_s3, view_to_parquet
 
 session = aioboto3.Session(**AIOBOTO3_CONF)
 router = APIRouter(prefix="/api-token", tags=["ApiTokenClient"])
@@ -42,9 +42,7 @@ async def export_view_to_s3_with_parquet(
     prod: bool = False,
     base_client: BaseClient = Depends(get_base_client),
 ):
-    content = await view_to_parquet(
-        client=base_client, table_name=table_name, view_name=view_name
-    )
+    content = await view_to_parquet(client=base_client, table_name=table_name, view_name=view_name)
 
     return await upload_to_s3(
         session=session,

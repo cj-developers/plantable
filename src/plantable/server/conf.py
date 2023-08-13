@@ -1,7 +1,8 @@
 import os
-from dotenv import load_dotenv
+
 import aioboto3
 from dasida import get_secrets
+from dotenv import load_dotenv
 
 load_dotenv()
 

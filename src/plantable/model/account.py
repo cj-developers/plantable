@@ -75,7 +75,10 @@ class BaseToken(_Model):
     dtable_socket: str  # 'https://seatable.jongno.life/'
     dtable_db: str = None  # 'https://seatable.jongno.life/dtable-db/'
     workspace_id: int = None  # 3
+    group_id: int = None  # (manually added)
+    group_name: str = None  # (manually added)
     base_name: str = Field(None, alias="dtable_name")  # 'employee
+    generated_at: datetime = datetime.now()  # (manually added)
 
 
 class Webhook(_Model):

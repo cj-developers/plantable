@@ -50,8 +50,7 @@ class BaseWebsocketClient(socketio.AsyncClient):
         seatable_url: str = SEATABLE_URL,
         seatable_username: str = SEATABLE_USERNAME,
         seatable_password: str = SEATABLE_PASSWORD,
-        on_update_handler: Callable = None,
-        on_notification_handler: Callable = None,
+        handler: Callable = None,
         request_timeout: int = 30,
     ):
         # account
@@ -64,8 +63,7 @@ class BaseWebsocketClient(socketio.AsyncClient):
         self.base_name = base_name
 
         # handler
-        self.on_update_handler = on_update_handler
-        self.on_notification_handler = on_notification_handler
+        self.handler = handler
 
         # websocket io
         super().__init__(request_timeout=request_timeout)
@@ -95,8 +93,6 @@ class BaseWebsocketClient(socketio.AsyncClient):
             "base_uuid": self.base_token.dtable_uuid,
             "base_name": self.base_token.base_name,
         }
-        self.update_key = {**self.key, "event_type": UPDATE_DTABLE}
-        self.notfication_key = {**self.key, "event_typ": NEW_NOTIFICATION}
 
     async def run(self, on_update: Callable = None, on_notification: Callable = None):
         try:
@@ -132,18 +128,18 @@ class BaseWebsocketClient(socketio.AsyncClient):
         logger.error("[ SeaTable SocketIO connection error ]", error_msg)
 
     async def on_update(self, data, index, *args):
-        msg = {"key": self.update_key, "value": {"index": index, "data": orjson.loads(data)}}
-        if self.on_update_handler:
-            self.on_update_handler(**msg)
+        msg = {"index": index, "base": orjson.dumps(self.key), UPDATE_DTABLE: data}
+        if self.handler:
+            await self.handler(UPDATE_DTABLE, msg)
         else:
-            print(msg)
+            print(UPDATE_DTABLE, msg)
 
     async def on_notification(self, data, index, *args):
-        msg = {"key": self.notification_key, "value": {"index": index, "data": orjson.loads(data)}}
-        if self.on_notification_handler:
-            self.on_notification_handler(**msg)
+        msg = {"index": index, "base": orjson.dumps(self.key), NEW_NOTIFICATION: data}
+        if self.handler:
+            await self.handler(NEW_NOTIFICATION, msg)
         else:
-            print(msg)
+            print(NEW_NOTIFICATION, msg)
 
     # override _handle_disconnect
     async def _handle_disconnect(self, namespace):

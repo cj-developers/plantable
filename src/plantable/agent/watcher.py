@@ -91,4 +91,5 @@ class Watcher:
             seatable_url=self.seatable_url,
             seatable_username=self.seatable_username,
             seatable_password=self.seatable_password,
+            handler=self.handler,
         )

@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 ################################################################
-# RedisStreamHandler2
+# RedisStreamAdder
 ################################################################
-class RedisStreamHandler:
+class RedisStreamAdder:
     def __init__(
         self,
         host: str = "localhost",
@@ -38,5 +38,5 @@ class RedisStreamHandler:
             pipe.xadd("|".join([self.key_prefix, key]), msg)
             await pipe.execute()
         except Exception as ex:
-            logger.warn(f"RedisStreamHandler {ex}")
+            logger.warn(f"RedisStreamAdder {ex}")
             traceback.print_exc()

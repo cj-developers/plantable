@@ -1,1 +1,1 @@
-from .redis_handler import RedisStreamHandler
+from .redis_handler import RedisStreamAdder

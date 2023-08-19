@@ -128,14 +128,14 @@ class BaseWebsocketClient(socketio.AsyncClient):
         logger.error("[ SeaTable SocketIO connection error ]", error_msg)
 
     async def on_update(self, data, index, *args):
-        msg = {"index": index, "base": orjson.dumps(self.key), UPDATE_DTABLE: data}
+        msg = {"index": index, "base": orjson.dumps(self.key), "data": data}
         if self.handler:
             await self.handler(UPDATE_DTABLE, msg)
         else:
             print(UPDATE_DTABLE, msg)
 
     async def on_notification(self, data, index, *args):
-        msg = {"index": index, "base": orjson.dumps(self.key), NEW_NOTIFICATION: data}
+        msg = {"index": index, "base": orjson.dumps(self.key), "data": data}
         if self.handler:
             await self.handler(NEW_NOTIFICATION, msg)
         else:

@@ -7,6 +7,8 @@ from typing import Callable, List
 
 import redis.asyncio as redis
 
+from ..conf import KEY_PREFIX, REDIS_HOST, REDIS_PORT
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,9 +18,9 @@ logger = logging.getLogger(__name__)
 class RedisStreamAdder:
     def __init__(
         self,
-        host: str = "localhost",
-        port: str = 6379,
-        key_prefix: str = "fasto",
+        host: str = REDIS_HOST,
+        port: str = REDIS_PORT,
+        key_prefix: str = KEY_PREFIX,
         maxlen: int = None,
         approximate: bool = False,
     ):

@@ -5,13 +5,13 @@ from typing import Callable
 from plantable.client import AdminClient
 
 from .conf import SEATABLE_PASSWORD, SEATABLE_URL, SEATABLE_USERNAME
-from .websocket_client import BaseWebsocketClient
+from .ws_client import BaseWebsocketClient
 
 logger = logging.getLogger(__file__)
 
 
-# Seatable Watcher
-class Watcher:
+# Seatable Producer
+class Producer:
     def __init__(
         self,
         seatable_url: str = SEATABLE_URL,
@@ -59,11 +59,13 @@ class Watcher:
                 if group_id not in tasks:
                     for base_id, task in bases.items():
                         task.cancel()
-                        print(f"task {group_id}/{base_id} removed!")
+                        _msg = f"Removed: Group {group_id}, Base {base_id}"
+                        print(_msg)
                 for base_id, task in bases.items():
                     if base_id not in tasks[group_id]:
                         task.cancel()
-                        print(f"task {group_id}/{base_id} removed!")
+                        _msg = f"Removed: {group_id}, Base {base_id}"
+                        print(_msg)
 
             # update tasks
             for group_id, bases in tasks.items():
@@ -74,9 +76,11 @@ class Watcher:
                         try:
                             ws = await self.create_websocket(group_id=group_id, base_name=base_name)
                             self.tasks[group_id][base_id] = asyncio.create_task(ws.run())
-                            print(f"task {group_id}/{base_id} registered!")
+                            _msg = f"Registered: Group {group_id}, Base {base_id}"
+                            print(_msg)
                         except Exception as ex:
-                            print(f"ERROR - {group_id}/{base_id} - {ex}")
+                            _msg = f"FAILED: create websocket and run - Group {group_id}, Base {base_id}"
+                            logger.warning(_msg)
 
             if debug:
                 break

@@ -9,7 +9,7 @@ import socketio
 
 from plantable.client import AdminClient
 
-from .conf import SEATABLE_PASSWORD, SEATABLE_URL, SEATABLE_USERNAME
+from ..conf import SEATABLE_PASSWORD, SEATABLE_URL, SEATABLE_USERNAME
 
 logger = logging.getLogger(__file__)
 

@@ -9,6 +9,11 @@ load_dotenv()
 SM_PROFILE_NAME = os.getenv("SM_PROFILE_NAME")
 SM_FASTO_ADMIN = os.getenv("SM_FASTO_ADMIN", "fasto-admin")
 
+# Redis Settings
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = os.getenv("REDIS_PORT", 6379)
+KEY_PREFIX = os.getenv("KEY_PREFIX", "fasto")
+
 # Load Secrets from SecretsManager
 secrets = get_secrets(SM_FASTO_ADMIN, profile_name=SM_PROFILE_NAME)
 SEATABLE_URL = secrets.get("seatable_url") if secrets else None

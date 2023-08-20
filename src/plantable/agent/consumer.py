@@ -105,6 +105,8 @@ class RedisConsumer:
                     if base_uuid not in store:
                         store[base_uuid] = {"base": base, "op": list()}
                     store[base_uuid]["op"].append(data)
+            for base_uuid, value in store.items():
+                group_id = value["base"]["group_id"]
 
     async def prepare(self):
         groups = await self.seatable_admin_client.list_groups()

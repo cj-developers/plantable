@@ -70,6 +70,12 @@ class BaseClient(HttpClient):
             results = response.json()
             self.base_token = BaseToken(**results)
 
+        self.dtable_uuid = self.base_token.dtable_uuid
+        self.workspace_id = self.base_token.workspace_id
+        self.group_id = self.base_token.group_id
+        self.group_name = self.base_token.group_name
+        self.base_name = self.base_token.base_name
+
     ################################################################
     # BASE INFO
     ################################################################
@@ -488,7 +494,14 @@ class BaseClient(HttpClient):
         # to python data type
         if deserialize:
             deserializer = await self.generate_deserializer(table_name=table_name)
-            rows = [deserializer(r) for r in rows]
+            try:
+                rows = [deserializer(r) for r in rows]
+            except Exception as ex:
+                _msg = (
+                    f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}'"
+                )
+                logger.error(_msg)
+                raise ex
 
         return rows
 
@@ -516,7 +529,12 @@ class BaseClient(HttpClient):
         # to python data type
         if deserialize:
             deserializer = await self.generate_deserializer(table_name=table_name)
-            rows = [deserializer(r) for r in rows]
+            try:
+                rows = [deserializer(r) for r in rows]
+            except Exception as ex:
+                _msg = f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}', view '{view_name}'"
+                logger.error(_msg)
+                raise ex
 
         return rows
 

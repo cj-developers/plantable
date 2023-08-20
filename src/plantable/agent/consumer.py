@@ -1,3 +1,4 @@
+import asyncio
 import io
 import time
 from typing import Union
@@ -112,8 +113,9 @@ class RedisConsumer:
                 tables = await bc.list_tables()
                 for table in tables:
                     if table.id not in self.store[group.id][base.id]:
-                        self.store[group.id][base.id][table.id] = self.get_offset()
-                        await self.overwrite_parquet_to_s3(base_client=bc, table_name=table.name)
+                        self.store[group.id][base.id][table.id] = asyncio.create_task(
+                            self.overwrite_parquet_to_s3(base_client=bc, table_name=table.name)
+                        )
 
     def get_offset(self):
         return str(int(time.time() * 1e3))
@@ -124,6 +126,7 @@ class RedisConsumer:
         return "/".join([*keys, ".".join(["__".join(keys), format])])
 
     async def overwrite_parquet_to_s3(self, base_client: BaseClient, table_name: str, parquet_version: str = "1.0"):
+        offset = self.get_offset()
         records = await base_client.read_table(table_name=table_name)
         tbl = pa.Table.from_pylist(records)
         with io.BytesIO() as buffer:
@@ -133,3 +136,4 @@ class RedisConsumer:
         obj_key = self.get_obj_key(base_client=base_client, table_name=table_name)
         async with self.boto_session.client("s3") as client:
             await client.upload_fileobj(io.BytesIO(content), self.aws_s3_bucket_name, obj_key)
+        return offset

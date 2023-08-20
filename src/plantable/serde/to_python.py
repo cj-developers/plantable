@@ -146,7 +146,7 @@ class ToPythonDict:
     def formula(self, value, data: dict = None):
         if data:
             try:
-                value = getattr(self, "_{}".format(data["result_type"]))(value)
+                value = getattr(self, "{}".format(data["result_type"]))(value)
             except Exception as ex:
                 if value != "#VALUE!":
                     raise ex

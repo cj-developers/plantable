@@ -31,6 +31,7 @@ from ..model import (
     Workspace,
 )
 from .account import AccountClient
+from .base import BaseClient
 
 logger = logging.getLogger()
 
@@ -758,8 +759,10 @@ class AdminClient(AccountClient):
         return base_token
 
     async def get_base_client_with_account_token(self, group_name_or_id: Union[str, int], base_name: str):
-        workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
-        return await super().get_base_client_with_account_token(workspace_id=workspace_id, base_name=base_name)
+        base_token = await self.get_base_token_with_account_token(
+            group_name_or_id=group_name_or_id, base_name=base_name
+        )
+        return BaseClient(seatable_url=self.seatable_url, base_token=base_token)
 
     # ensure group member - add me to group member if not
     async def ensure_group_member(self, group_name_or_id: Union[str, int]):

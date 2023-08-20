@@ -11,6 +11,7 @@ import redis.asyncio as redis
 
 from plantable.client import AdminClient, BaseClient
 
+from .events.const import PARQUET_OVERWRITE_EVENTS
 from .conf import (
     AWS_S3_ACCESS_KEY_ID,
     AWS_S3_BUCKET_NAME,
@@ -93,10 +94,17 @@ class RedisConsumer:
             )
 
             indices = list()
+            store = dict()
             for idx, msg in messages:
                 indices.append(idx)
                 base = orjson.loads(msg["base"])
                 data = orjson.loads(msg["data"])
+                op_type = data["op_type"]
+                if op_type in PARQUET_OVERWRITE_EVENTS:
+                    base_uuid = base["base_uuid"]
+                    if base_uuid not in store:
+                        store[base_uuid] = {"base": base, "op": list()}
+                    store[base_uuid]["op"].append(data)
 
     async def prepare(self):
         groups = await self.seatable_admin_client.list_groups()

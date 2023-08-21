@@ -2,7 +2,10 @@ import logging
 
 import click
 import uvicorn
+import uvloop
 from click_loglevel import LogLevel
+
+logger = logging.getLogger(__file__)
 
 
 @click.group()
@@ -15,19 +18,42 @@ def hello():
     print("Hello, Plantable!")
 
 
-@plantable.command()
+@plantable.group()
 def agent():
     pass
 
 
 @agent.command()
-def watch():
-    from plantable.agent import Watcher
+@click.option("--log-level", default=logging.WARNING, type=LogLevel())
+def produce(log_level):
+    import asyncio
 
-    watcher = Watcher()
+    from redis.exceptions import ConnectionError as RedisConnectionError
+
+    from plantable.agent import Producer, RedisStreamAdder
+
+    logging.basicConfig(level=log_level)
+
+    async def main():
+        handler = RedisStreamAdder()
+        for _ in range(12):
+            try:
+                await handler.redis_client.ping()
+                break
+            except RedisConnectionError as ex:
+                print("Wait Redis...")
+            await asyncio.sleep(5.0)
+
+        producer = Producer(handler=handler)
+
+        await producer.run()
+
+    loop = uvloop.new_event_loop()
+    asyncio.set_event_loop(loop)
+    asyncio.run(main())
 
 
-@plantable.command()
+@plantable.group()
 def server():
     pass
 

@@ -24,29 +24,57 @@ def agent():
 
 
 @agent.command()
+@click.option("--seatable-url", default=None)
+@click.option("--seatable-username", default=None)
+@click.option("--seatable-password", default=None)
+@click.option("--redis-host", default=None)
+@click.option("--redis-port", default=None)
 @click.option("--log-level", default=logging.WARNING, type=LogLevel())
-def produce(log_level):
+def run_producer(seatable_url, seatable_username, seatable_password, redis_host, redis_port, log_level):
     import asyncio
 
     from redis.exceptions import ConnectionError as RedisConnectionError
 
     from plantable.agent import Producer, RedisStreamAdder
+    from plantable.agent.conf import (
+        AWS_S3_ACCESS_KEY_ID,
+        AWS_S3_SECRET_ACCESS_KEY,
+        REDIS_HOST,
+        REDIS_PORT,
+        SEATABLE_PASSWORD,
+        SEATABLE_URL,
+        SEATABLE_USERNAME,
+    )
 
     logging.basicConfig(level=log_level)
 
+    REDIS_CONF = {
+        "host": redis_host or REDIS_HOST,
+        "port": redis_port or REDIS_PORT,
+    }
+
+    SEATABLE_CONF = {
+        "seatable_url": seatable_url or SEATABLE_URL,
+        "seatable_username": seatable_username or SEATABLE_USERNAME,
+        "seatable_password": seatable_password or SEATABLE_PASSWORD,
+    }
+
     async def main():
-        handler = RedisStreamAdder()
+        handler = RedisStreamAdder(**REDIS_CONF)
         for _ in range(12):
             try:
                 await handler.redis_client.ping()
                 break
-            except RedisConnectionError as ex:
+            except RedisConnectionError:
                 print("Wait Redis...")
             await asyncio.sleep(5.0)
 
-        producer = Producer(handler=handler)
+        producer = Producer(**SEATABLE_CONF, handler=handler)
 
-        await producer.run()
+        try:
+            await producer.run()
+        except asyncio.CancelledError:
+            return
 
     loop = uvloop.new_event_loop()
     asyncio.set_event_loop(loop)

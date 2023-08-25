@@ -18,7 +18,7 @@ class Producer:
         seatable_username: str = SEATABLE_USERNAME,
         seatable_password: str = SEATABLE_PASSWORD,
         handler: Callable = None,
-        wait_for: float = 10.0,
+        wait_for: float = 2.0,
     ):
         self.seatable_url = seatable_url
         self.seatable_username = seatable_username
@@ -39,61 +39,72 @@ class Producer:
     async def run(self, debug: bool = False):
         try:
             await self.watch(debug=debug)
-        except asyncio.CancelledError as ex:
+        except KeyboardInterrupt:
             logger.error("Canelled!")
-            for group, bases in self.tasks.items():
-                for base, task in bases.items():
+            for group_id, bases in self.tasks.items():
+                for base_id, task in bases.items():
                     await self.cancel_task(task)
-                    _msg = f"Removed: Group {group}, Base {base}"
+                    _msg = f"Removed: Group {group_id}, Base {base_id}"
                     print(_msg)
-            raise ex
+            return
 
     # list views with name
     async def watch(self, debug: bool = False):
-        while True:
-            tasks = dict()
-            groups = await self.client.list_groups()
-            for group in groups:
-                if group.id not in tasks:
-                    tasks[group.id] = dict()
-                bases = await self.client.list_group_bases(group.name)
-                for base in bases:
-                    if base.id not in tasks[group.id]:
-                        tasks[group.id].update({base.id: base.name})
+        try:
+            while True:
+                tasks = dict()
+                groups = await self.client.list_groups()
+                for group in groups:
+                    if group.id not in tasks:
+                        tasks[group.id] = dict()
+                    bases = await self.client.list_group_bases(group.name)
+                    for base in bases:
+                        if base.id not in tasks[group.id]:
+                            tasks[group.id].update({base.id: base.name})
 
-            # remove deleted bases
-            for group_id, bases in self.tasks.items():
-                if group_id not in tasks:
-                    for base_id, task in bases.items():
-                        await self.cancel_task(task)
-                        _msg = f"Removed: Group {group_id}, Base {base_id}"
-                        print(_msg)
-                for base_id, task in bases.items():
-                    if base_id not in tasks[group_id]:
-                        await self.cancel_task(task)
-                        _msg = f"Removed: {group_id}, Base {base_id}"
-                        print(_msg)
-
-            # update tasks
-            for group_id, bases in tasks.items():
-                if group_id not in self.tasks:
-                    self.tasks[group_id] = dict()
-                for base_id, base_name in bases.items():
-                    if base_id not in self.tasks[group_id] or self.tasks[group_id][base_id].done():
-                        try:
-                            self.tasks[group_id][base_id] = asyncio.create_task(
-                                self.run_websocket(group_id=group_id, base_name=base_name)
-                            )
-                            _msg = f"Registered: Group {group_id}, Base {base_id}"
+                # remove deleted bases
+                empty_groups = list()
+                for group_id, bases in self.tasks.items():
+                    empty_bases = list()
+                    if not bases:
+                        empty_groups.append(group_id)
+                    if group_id not in tasks:
+                        for base_id, task in bases.items():
+                            await self.cancel_task(task)
+                            _msg = f"Removed: Group {group_id}, Base {base_id}"
                             print(_msg)
-                        except Exception as ex:
-                            _msg = f"FAILED: create websocket and run - Group {group_id}, Base {base_id}"
-                            logger.warning(_msg)
+                            empty_bases.append(base_id)
+                    for base_id, task in bases.items():
+                        if base_id not in tasks[group_id]:
+                            await self.cancel_task(task)
+                            _msg = f"Removed: {group_id}, Base {base_id}"
+                            print(_msg)
+                            empty_bases.append(base_id)
+                    for empty_base in empty_bases:
+                        self.tasks[group_id].pop(empty_base)
+                for empty_group in empty_groups:
+                    self.tasks.pop(empty_group)
 
-            if debug:
-                break
-
-            await asyncio.sleep(self.wait_for)
+                # update tasks
+                for group_id, bases in tasks.items():
+                    if group_id not in self.tasks:
+                        self.tasks[group_id] = dict()
+                    for base_id, base_name in bases.items():
+                        if base_id not in self.tasks[group_id] or self.tasks[group_id][base_id].done():
+                            try:
+                                self.tasks[group_id][base_id] = asyncio.create_task(
+                                    self.run_websocket(group_id=group_id, base_name=base_name)
+                                )
+                                _msg = f"Registered: Group {group_id}, Base {base_id}"
+                                print(_msg)
+                            except Exception as ex:
+                                _msg = f"FAILED: create websocket and run - Group {group_id}, Base {base_id} (exceoption: {ex})"
+                                logger.warning(_msg)
+                if debug:
+                    break
+                await asyncio.sleep(self.wait_for)
+        except asyncio.CancelledError:
+            return
 
     # Create Websocket
     async def run_websocket(self, group_id: int, base_name: str):
@@ -107,12 +118,12 @@ class Producer:
         )
         try:
             await client.run()
-        except asyncio.CancelledError as ex:
+        except KeyboardInterrupt:
             await client.disconnect()
-            raise ex
 
     @staticmethod
     async def cancel_task(task):
         task.cancel()
-        while not task.cancelled():
+        while not task.done():
             await asyncio.sleep(0.1)
+        return

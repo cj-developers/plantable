@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import Callable, List, Union
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import requests
 import socketio
 from fastapi import HTTPException, status
@@ -46,8 +48,8 @@ class BaseClient(HttpClient):
     def __init__(
         self,
         seatable_url: str = SEATABLE_URL,
-        base_token: Union[BaseToken, str] = None,
         api_token: str = None,
+        base_token: BaseToken = None,
     ):
         super().__init__(seatable_url=seatable_url.rstrip("/"))
 
@@ -204,7 +206,7 @@ class BaseClient(HttpClient):
         """
         [NOTE]
          default LIMIT 100 when not LIMIT is given!
-         max LIMIT 10000
+         max LIMIT 10000!
         """
         METHOD = "POST"
         URL = f"/dtable-db/api/v1/query/{self.base_token.dtable_uuid}/"
@@ -224,6 +226,7 @@ class BaseClient(HttpClient):
         return results
 
     # List Rows (View)
+    # [NOTE] 4.1에서 첫 Row에 없는 값은 안 읽어오는 이슈
     async def list_rows(
         self,
         table_name: str,
@@ -234,6 +237,8 @@ class BaseClient(HttpClient):
         start: int = 0,
         limit: int = None,
     ):
+        MAX_LIMIT = 1000
+
         METHOD = "GET"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
         ITEM = "rows"
@@ -241,7 +246,7 @@ class BaseClient(HttpClient):
         get_all_rows = False
         if not limit:
             get_all_rows = True
-            limit = limit or 1000
+            limit = limit or MAX_LIMIT
 
         params = {
             "table_name": table_name,
@@ -456,7 +461,7 @@ class BaseClient(HttpClient):
         mtime: str = "_mtime",
         deserialize: bool = True,
     ) -> List[dict]:
-        LIMIT = 100
+        MAX_LIMIT = 10000
         OFFSET = 0
 
         # correct args
@@ -465,7 +470,7 @@ class BaseClient(HttpClient):
             columns = ["*"]
         if not isinstance(columns, list):
             columns = [x.strip() for x in columns.split(",")]
-        _limit = min(LIMIT, limit) if limit else limit
+        _limit = min(MAX_LIMIT, limit) if limit else limit
         _offset = offset if offset else OFFSET
 
         q = PikaQuery.from_(table).select(*columns)
@@ -477,7 +482,7 @@ class BaseClient(HttpClient):
             if isinstance(modified_after, datetime):
                 modified_after = modified_after.isoformat(timespec="milliseconds")
             q = q.where(table[mtime] > modified_after)
-        q = q.limit(_limit or LIMIT)
+        q = q.limit(_limit or MAX_LIMIT)
 
         # 1st hit
         rows = await self.list_rows_with_sql(sql=q.offset(_offset))
@@ -485,10 +490,10 @@ class BaseClient(HttpClient):
         # get all records
         if not limit or len(rows) < limit:
             while True:
-                _offset += LIMIT
+                _offset += MAX_LIMIT
                 _rows = await self.list_rows_with_sql(sql=q.offset(_offset))
                 rows += _rows
-                if len(_rows) < LIMIT:
+                if len(_rows) < MAX_LIMIT:
                     break
 
         # to python data type
@@ -505,6 +510,33 @@ class BaseClient(HttpClient):
 
         return rows
 
+    # (CUSTOM) read table as DataFrame
+    async def read_table_as_df(
+        self,
+        table_name: str,
+        columns: List[str] = None,
+        modified_before: str = None,
+        modified_after: str = None,
+        offset: int = 0,
+        limit: int = None,
+        mtime: str = "_mtime",
+        deserialize: bool = True,
+    ):
+        rows = await self.read_table(
+            table_name=table_name,
+            columns=columns,
+            modified_before=modified_before,
+            modified_after=modified_after,
+            offset=offset,
+            limit=limit,
+            mtime=mtime,
+            deserialize=deserialize,
+        )
+
+        tbl = pa.Table.from_pylist(rows).to_pandas()
+        return tbl.set_index("_id", drop=True).rename_axis("row_id")
+
+    # (CUSTOM) read view
     async def read_view(
         self,
         table_name: str,
@@ -537,6 +569,32 @@ class BaseClient(HttpClient):
                 raise ex
 
         return rows
+
+    # (CUSTOM) read view as DataFrame
+    async def read_view_as_df(
+        self,
+        table_name: str,
+        view_name: str,
+        convert_link_id: bool = False,
+        order_by: str = None,
+        direction: str = "asc",
+        start: int = 0,
+        limit: int = None,
+        deserialize: bool = True,
+    ):
+        rows = await self.read_view(
+            table_name=table_name,
+            view_name=view_name,
+            convert_link_id=convert_link_id,
+            order_by=order_by,
+            direction=direction,
+            start=start,
+            limit=limit,
+            deserialize=deserialize,
+        )
+
+        tbl = pa.Table.from_pylist(rows).to_pandas()
+        return tbl.set_index("_id", drop=True).rename_axis("row_id")
 
     # (CUSTOM) Generate Deserializer
     async def generate_deserializer(self, table_name):

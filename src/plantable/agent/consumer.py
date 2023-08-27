@@ -1,5 +1,6 @@
 import asyncio
 import io
+import logging
 import time
 from typing import Union
 
@@ -11,7 +12,6 @@ import redis.asyncio as redis
 
 from plantable.client import AdminClient, BaseClient
 
-from .events.const import PARQUET_OVERWRITE_EVENTS
 from .conf import (
     AWS_S3_ACCESS_KEY_ID,
     AWS_S3_BUCKET_NAME,
@@ -25,10 +25,13 @@ from .conf import (
     SEATABLE_URL,
     SEATABLE_USERNAME,
 )
+from .events.const import PARQUET_OVERWRITE_EVENTS
 from .ws_client.client import NEW_NOTIFICATION, UPDATE_DTABLE
 
+logger = logging.getLogger(__name__)
 
-class RedisConsumer:
+
+class Consumer:
     def __init__(
         self,
         redis_host: str = REDIS_HOST,
@@ -49,7 +52,9 @@ class RedisConsumer:
         self.redis_port = int(redis_port) if redis_port else redis_port
         self.key_prefix = key_prefix
 
-        self.redis_client = redis.Redis(host=self.redis_host, port=self.redis_port, decode_responses=True)
+        self.redis_client = redis.Redis(
+            host=self.redis_host, port=self.redis_port, decode_responses=True
+        )
         self.key_update_dtable = "|".join([self.key_prefix, UPDATE_DTABLE])
         self.key_new_notification = "|".join([self.key_prefix, NEW_NOTIFICATION])
 
@@ -83,7 +88,7 @@ class RedisConsumer:
         self.last_update = None
 
     async def run(self):
-        await self.prepare()
+        await self.snapshot()
 
         while True:
             now = self.get_offset()
@@ -108,7 +113,7 @@ class RedisConsumer:
             for base_uuid, value in store.items():
                 group_id = value["base"]["group_id"]
 
-    async def prepare(self):
+    async def snapshot(self):
         groups = await self.seatable_admin_client.list_groups()
         for group in groups:
             if group.id not in self.store:
@@ -135,7 +140,9 @@ class RedisConsumer:
         keys = [self.aws_s3_bucket_prefix, base_token.group_name, base_token.base_name, table_name]
         return "/".join([*keys, ".".join(["__".join(keys), format])])
 
-    async def overwrite_parquet_to_s3(self, base_client: BaseClient, table_name: str, parquet_version: str = "1.0"):
+    async def overwrite_parquet_to_s3(
+        self, base_client: BaseClient, table_name: str, parquet_version: str = "1.0"
+    ):
         offset = self.get_offset()
         records = await base_client.read_table(table_name=table_name)
         tbl = pa.Table.from_pylist(records)

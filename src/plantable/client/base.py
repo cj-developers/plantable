@@ -34,6 +34,7 @@ from ..model import (
     Webhook,
 )
 from ..serde import ToPythonDict
+from ..typing import SeaTableType
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
 from .exception import MoreRows
@@ -502,9 +503,7 @@ class BaseClient(HttpClient):
             try:
                 rows = [deserializer(r) for r in rows]
             except Exception as ex:
-                _msg = (
-                    f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}'"
-                )
+                _msg = f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}'"
                 logger.error(_msg)
                 raise ex
 
@@ -533,6 +532,8 @@ class BaseClient(HttpClient):
             deserialize=deserialize,
         )
 
+        if not rows:
+            return None
         tbl = pa.Table.from_pylist(rows).to_pandas()
         return tbl.set_index("_id", drop=True).rename_axis("row_id")
 
@@ -593,13 +594,19 @@ class BaseClient(HttpClient):
             deserialize=deserialize,
         )
 
+        if not rows:
+            return None
         tbl = pa.Table.from_pylist(rows).to_pandas()
         return tbl.set_index("_id", drop=True).rename_axis("row_id")
 
     # (CUSTOM) Generate Deserializer
     async def generate_deserializer(self, table_name):
         table = await self.get_table(table_name)
-        users = await self.list_collaborators() if "collaborator" in [c.type for c in table.columns] else None
+        users = (
+            await self.list_collaborators()
+            if "collaborator" in [c.type for c in table.columns]
+            else None
+        )
         return ToPythonDict(table=table, users=users)
 
     ################################################################
@@ -614,10 +621,13 @@ class BaseClient(HttpClient):
     # TABLES
     ################################################################
     # Create New Table
-    async def create_new_table(self, table_name: str, columns: List[dict]):
+    async def create_new_table(self, table_name: str, columns: List[Union[dict, SeaTableType]]):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/tables/"
-        JSON = {"table_name": table_name, "columns": columns}
+        JSON = {
+            "table_name": table_name,
+            "columns": [c.seatable_schema() if isinstance(c, SeaTableType) else c for c in columns],
+        }
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
@@ -675,7 +685,9 @@ class BaseClient(HttpClient):
         ITEM = "views"
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, table_name=table_name)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, table_name=table_name
+            )
             results = response[ITEM]
 
         if model:
@@ -723,7 +735,9 @@ class BaseClient(HttpClient):
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/views/{view_name}/"
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, table_name=table_name)
+            results = await self.request(
+                session=session, method=METHOD, url=URL, table_name=table_name
+            )
 
         if model:
             results = model(**results)
@@ -738,7 +752,9 @@ class BaseClient(HttpClient):
 
     # Update View
     # NOT TESTED!
-    async def update_view(self, table_name: str, view_name: str, conf: Union[dict, BaseModel] = None):
+    async def update_view(
+        self, table_name: str, view_name: str, conf: Union[dict, BaseModel] = None
+    ):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/views/{view_name}/"
 
@@ -763,7 +779,9 @@ class BaseClient(HttpClient):
         ITEM = "success"
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, table_name=table_name)
+            response = await self.request(
+                session=session, method=METHOD, url=URL, table_name=table_name
+            )
             results = response[ITEM]
 
         return results
@@ -798,7 +816,9 @@ class BaseClient(HttpClient):
     # ACTIVITIES & LOGS
     ################################################################
     # Get Base Activity Logs
-    async def get_base_activity_log(self, page: int = 1, per_page: int = 25, model: BaseModel = BaseActivity):
+    async def get_base_activity_log(
+        self, page: int = 1, per_page: int = 25, model: BaseModel = BaseActivity
+    ):
         # rename table in a second step
         METHOD = "GET"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/operations/"

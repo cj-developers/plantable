@@ -1,55 +1,65 @@
 import parse
 import pyarrow as pa
 
+from ..typing import (
+    AutoNumber,
+    Button,
+    Checkbox,
+    Collaborator,
+    CreationTime,
+    Creator,
+    Date,
+    Datetime,
+    Duration,
+    Email,
+    File,
+    Formula,
+    Image,
+    Integer,
+    LastModificationTime,
+    LastModifier,
+    Link,
+    LinkFomula,
+    LongText,
+    MultipleSelect,
+    Number,
+    Rate,
+    SingleSelect,
+    Text,
+    Url,
+)
 from .const import SYSTEM_FIELDS
 
-# SeaTable dtypes
-CHECKBOX = {"column_type": "checkbox"}
-TEXT = {"column_type": "text"}
-LONG_TEXT = {"column_type": "long-text"}
-INTEGER = {
-    "column_type": "number",
-    "column_data": {"format": "number", "decimal": "dot", "thousands": "comma"},
-}
-NUMBER = {
-    "column_type": "number",
-    "column_data": {"format": "number", "decimal": "dot", "thousands": "comma"},
-}
-DURATION = {"column_type": "duration", "column_data": {"format": "h:mm:ss"}}
-DATE = {"column_type": "date", "column_data": {"format": "YYYY-MM-DD"}}
-DATETIME = {"column_type": "date", "column_data": {"format": "YYYY-MM-DD HH:mm"}}
-SINGLE_SELECT = {"column_type": "single-select"}
-MULTIPLE_SELECT = {"column_type": "multiple-select"}
 
 # Arrow to Seatable Schema
 SCHEMA_MAP = {
-    "null": TEXT,
-    "bool": CHECKBOX,
-    "int8": INTEGER,
-    "int16": INTEGER,
-    "int32": INTEGER,
-    "int64": INTEGER,
-    "uint8": INTEGER,
-    "uint16": INTEGER,
-    "uint32": INTEGER,
-    "uint64": INTEGER,
-    "halffloat": NUMBER,  # float16
-    "float": NUMBER,  # float32
-    "double": NUMBER,  # float64
-    "time32": DURATION,
-    "time64": DURATION,
-    "timestamp": DATETIME,
-    "date32": DATE,
-    "date64": DATE,
-    "duration": DURATION,
-    "string": TEXT,
-    "utf8": TEXT,
-    "large_string": LONG_TEXT,
-    "large_utf8": LONG_TEXT,
-    "decimal128": NUMBER,
-    "list": MULTIPLE_SELECT,
-    "large_list": MULTIPLE_SELECT,
+    "bool": Checkbox,
+    "int8": Integer,
+    "int16": Integer,
+    "int32": Integer,
+    "int64": Integer,
+    "uint8": Integer,
+    "uint16": Integer,
+    "uint32": Integer,
+    "uint64": Integer,
+    "halffloat": Number,  # float16
+    "float": Number,  # float32
+    "double": Number,  # float64
+    "time32": Duration,
+    "time64": Duration,
+    "timestamp": Datetime,
+    "date32": Date,
+    "date64": Date,
+    "duration": Duration,
+    "string": Text,
+    "utf8": Text,
+    "large_string": LongText,
+    "large_utf8": LongText,
+    "decimal128": Number,
+    "list": MultipleSelect,
+    "large_list": MultipleSelect,
 }
+
 
 ARROW_STR_DTYPE_PATTERNS = [
     parse.compile("{dtype}[{unit}, tz={tz}]"),
@@ -71,7 +81,7 @@ class FromArrowTable:
 
         # seatable schema
         self.columns = [
-            {"column_name": name, **SCHEMA_MAP[opt["dtype"]]}
+            SCHEMA_MAP[opt["dtype"]](name=name)
             for name, opt in self.opts.items()
             if name not in SYSTEM_FIELDS
         ]
@@ -85,8 +95,7 @@ class FromArrowTable:
 
     def get_rows_for_append(self):
         return [
-            {k: v for k, v in r.items() if k not in SYSTEM_FIELDS}
-            for r in self.tbl.to_pylist()
+            {k: v for k, v in r.items() if k not in SYSTEM_FIELDS} for r in self.tbl.to_pylist()
         ]
 
     def get_rows_for_update(self, row_id_field: str = "_id"):

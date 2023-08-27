@@ -1,3 +1,3 @@
-from .producer import Producer
+from .consumer import Consumer
 from .handlers import RedisStreamAdder
-from .consumer import RedisConsumer
+from .producer import Producer

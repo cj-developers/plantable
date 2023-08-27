@@ -1,9 +1,7 @@
 import logging
-import os
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any, List, Union
 
-import pytz
 
 from ..model import Table
 from .const import DT_FMT, SYSTEM_FIELDS, TZ
@@ -20,12 +18,17 @@ class ToPythonDict:
         self.users = users
 
         self.columns = {
-            **{column.name: {"column_type": column.type, "column_data": column.data} for column in table.columns},
+            **{
+                column.name: {"column_type": column.type, "column_data": column.data}
+                for column in table.columns
+            },
             **SYSTEM_FIELDS,
         }
 
         self.user_map = (
-            {user.email: f"{user.name} ({user.contact_email})" for user in self.users} if self.users else None
+            {user.email: f"{user.name} ({user.contact_email})" for user in self.users}
+            if self.users
+            else None
         )
         self.row_id_map = {column.key: column.name for column in table.columns}
 
@@ -66,9 +69,11 @@ class ToPythonDict:
             return int(value)
         return float(value)
 
-    def date(self, value: str, data: dict = None) -> datetime:
+    def date(self, value: str, data: dict = None) -> Union[date, datetime]:
         if not value:
             return value
+        if data and data["format"] == "YYYY-MM-DD":
+            return date.fromisoformat(value[:10])
         if value.endswith("Z"):
             value = value.replace("Z", "+00:00", 1)
         try:
@@ -124,7 +129,9 @@ class ToPythonDict:
     def user(self, user: str):
         if not self.user_map:
             return user
-        return self.user_map[user]
+        if user in self.user_map:
+            return self.user_map[user]
+        return user
 
     def collaborator(self, value: List[str], data: dict = None) -> List[str]:
         if not value:
@@ -138,7 +145,7 @@ class ToPythonDict:
         return self.user(value)
 
     def file(self, value, data: dict = None):
-        return value
+        return [x["url"] for x in value]
 
     def image(self, value, data: dict = None):
         return value

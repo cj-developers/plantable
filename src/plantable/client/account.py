@@ -51,7 +51,9 @@ class AccountClient(HttpClient):
 
     def login(self):
         auth_url = self.seatable_url + "/api2/auth-token/"
-        response = requests.post(auth_url, json={"username": self.username, "password": self.password})
+        response = requests.post(
+            auth_url, json={"username": self.username, "password": self.password}
+        )
         response.raise_for_status()
         results = response.json()
         self.account_token = results["token"]
@@ -107,7 +109,9 @@ class AccountClient(HttpClient):
         return results
 
     # [API TOKEN] create temporary api token
-    async def create_temp_api_token(self, workspace_id: str, base_name: str, model: BaseModel = ApiToken):
+    async def create_temp_api_token(
+        self, workspace_id: str, base_name: str, model: BaseModel = ApiToken
+    ):
         METHOD = "GET"
         URL = f"/api/v2.1/workspace/{workspace_id}/dtable/{base_name}/temp-api-token/"
         ITEM = "api_token"
@@ -223,7 +227,7 @@ class AccountClient(HttpClient):
     ################################################################
     # [BASE CLIENT] (custom) get base client with account token
     async def get_base_client_with_account_token(self, workspace_id: str, base_name: str):
-        base_token = await self.get_base_token_with_account_token(workspace_id=workspace_id, base_name=base_name)
-        client = BaseClient(base_token=base_token)
-
-        return client
+        base_token = await self.get_base_token_with_account_token(
+            workspace_id=workspace_id, base_name=base_name
+        )
+        return BaseClient(base_token=base_token)

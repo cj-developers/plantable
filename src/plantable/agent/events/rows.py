@@ -27,6 +27,7 @@ class RowEvent(Event):
 
 # Insert Row
 class InsertRow(RowEvent):
+    anchor_row_id: str  # Insert의 기준 row
     row_insert_position: str  # 기준 row에 대한 insert position
     row_data: dict
     links_data: dict = None
@@ -67,14 +68,26 @@ def row_event_parser(data):
 
     # INSERT
     if op_type == OP_INSERT_ROW:
-        return [InsertRow(**data)]
+        return [
+            InsertRow(
+                op_type=data["op_type"],
+                table_id=data["table_id"],
+                row_id=data["row_data"]["_id"],
+                anchor_row_id=data["row_id"],
+                row_insert_position=data["row_insert_position"],
+                row_data=data["row_data"],
+                links_data=data["links_data"],
+                key_auto_number_config=data["key_auto_number_config"],
+            )
+        ]
 
     if op_type == OP_INSERT_ROWS:
         return [
             InsertRow(
                 op_type=OP_INSERT_ROW,
                 table_id=data["table_id"],
-                row_id=row_id,
+                row_id=row_data["_id"],
+                anchor_row_id=row_id,
                 row_insert_position=data["row_insert_position"],
                 row_data=row_data,
                 links_data=data["links_data"],

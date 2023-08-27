@@ -1,7 +1,23 @@
+from typing import List
 from pydantic import BaseModel
 
+from .const import (
+    Event,
+    Option,
+    OP_INSERT_VIEW,
+    OP_DELETE_VIEW,
+    OP_RENAME_VIEW,
+    OP_MODIFY_VIEW_LOCK,
+    OP_MODIFY_FILTERS,
+    OP_MODIFY_SORTS,
+    OP_MODIFY_GROUPBYS,
+    OP_MODIFY_HIDDEN_COLUMNS,
+    OP_MODIFY_ROW_COLOR,
+    OP_MODIFY_ROW_HEIGHT,
+)
 
-class View(BaseModel):
+
+class View(Option):
     _id: str  # "ht2Q"
     name: str  # "test"
     type: str  # "table"
@@ -26,89 +42,49 @@ class View(BaseModel):
 ################################################################
 # INSERT VIEW
 ################################################################
-sample_insert_view = {
-    "op_type": "insert_view",
-    "table_id": "wMtQ",
-    "view_data": {
-        "_id": "ht2Q",
-        "name": "test",
-        "type": "table",
-        "private_for": None,
-        "is_locked": False,
-        "row_height": "default",
-        "filter_conjunction": "And",
-        "filters": [],
-        "sorts": [],
-        "groupbys": [],
-        "colorbys": {},
-        "hidden_columns": [],
-        "rows": [],
-        "formula_rows": {},
-        "link_rows": {},
-        "summaries": {},
-        "colors": {},
-        "column_colors": {},
-        "groups": [],
-    },
-    "view_folder_id": None,
-}
-
-
-class InsertView(BaseModel):
+# View Event
+class ViewEvent(Event):
     op_type: str
     table_id: str
+    view_id: str = None
+
+
+# Insert View
+class InsertView(ViewEvent):
     view_data: dict
     view_folder_id: str
 
 
-sample_delete_view = {
-    "op_type": "delete_view",
-    "table_id": "0000",
-    "view_id": "761d",
-    "view_folder_id": None,
-    "view_name": "abc",
-}
-
-sample_rename_view = {
-    "op_type": "rename_view",
-    "table_id": "wMtQ",
-    "view_id": "ht2Q",
-    "view_name": "test_again",
-}
-
-sample_modify_view_lock = {
-    "op_type": "modify_view_lock",
-    "table_id": "wMtQ",
-    "view_id": "ht2Q",
-    "is_locked": True,
-}
+# Helper
+class ViewSorts(Option):
+    column_key: str
+    sort_type: str
 
 
-sample_modify_filters = {
-    "op_type": "modify_filters",
-    "table_id": "wMtQ",
-    "view_id": "ht2Q",
-    "filters": [{"column_key": "0000", "filter_predicate": "contains", "filter_term": "woojin"}],
-    "filter_conjunction": "And",
-}
+# ModifySorts
+class ModifySorts(ViewEvent):
+    sorts: List[ViewSorts]
 
-sample_modify_sorts = {
-    "op_type": "modify_sorts",
-    "table_id": "wMtQ",
-    "view_id": "ht2Q",
-    "sorts": [{"column_key": "HkRD", "sort_type": "up"}],
-}
 
-sample_modify_groupbys = {
-    "op_type": "modify_groupbys",
-    "table_id": "wMtQ",
-    "view_id": "ht2Q",
-    "groupbys": [{"column_key": "HkRD", "sort_type": "up", "count_type": ""}],
-}
+# ModifyRowColor
+class ModifyRowColor(ViewEvent):
+    colorbys: dict
 
-sample_modify_hidden_columns = {
-    "op_type": "modify_hidden_columns",
-    "table_id": "wMtQ",
-    "view_id": "ht2Q",
-    "hidden_columns": ["WD7B"],
-}
+
+################################################################
+# View Event Parser
+################################################################
+def view_event_parser(data):
+    op_type = data["op_type"]
+
+    if op_type == OP_INSERT_VIEW:
+        return [InsertView(**data)]
+
+    if op_type == OP_MODIFY_SORTS:
+        return [ModifySorts(**data)]
+
+    if op_type == OP_MODIFY_ROW_COLOR:
+        return [ModifyRowColor(**data)]
+
+    _msg = f"view_parser - unknown op_type '{op_type}'."
+    raise KeyError(_msg)

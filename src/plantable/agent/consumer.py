@@ -46,6 +46,7 @@ class Consumer:
         aws_s3_region_name: str = AWS_S3_REGION_NAME,
         aws_s3_bucket_name: str = AWS_S3_BUCKET_NAME,
         aws_s3_bucket_prefix: str = AWS_S3_BUCKET_PREFIX,
+        batch_seconds: float = 30.0,
     ):
         # Redis to Subscribe
         self.redis_host = redis_host
@@ -83,6 +84,9 @@ class Consumer:
             region_name=self.aws_s3_region_name,
         )
 
+        # batch
+        self.batch_seconds = batch_seconds
+
         # Store
         self.store = dict()
         self.last_update = None
@@ -93,25 +97,26 @@ class Consumer:
         while True:
             now = self.get_offset()
             messages = await self.redis_client.xrange(
-                name=self.key_update_dtable,
-                min=self.last_update,
-                max=now,
+                name=self.key_update_dtable, min=self.last_update, max=now
             )
 
             indices = list()
             store = dict()
             for idx, msg in messages:
                 indices.append(idx)
-                base = orjson.loads(msg["base"])
-                data = orjson.loads(msg["data"])
+                base, data = orjson.loads(msg["base"]), orjson.loads(msg["data"])
+
                 op_type = data["op_type"]
                 if op_type in PARQUET_OVERWRITE_EVENTS:
-                    base_uuid = base["base_uuid"]
+                    base["base_uuid"]
                     if base_uuid not in store:
                         store[base_uuid] = {"base": base, "op": list()}
                     store[base_uuid]["op"].append(data)
             for base_uuid, value in store.items():
                 group_id = value["base"]["group_id"]
+
+            self.last_update = now
+            await asyncio.sleep(self.batch_seconds)
 
     async def snapshot(self):
         groups = await self.seatable_admin_client.list_groups()

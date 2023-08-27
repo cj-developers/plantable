@@ -1,3 +1,16 @@
+from pydantic import BaseModel, Extra
+
+
+class Event(BaseModel):
+    class Config:
+        extra = Extra.forbid
+
+
+class Option(BaseModel):
+    class Config:
+        extra = Extra.forbid
+
+
 # COLUMNS
 OP_INSERT_COLUMN = "insert_column"
 OP_DELETE_COLUMN = "delete_column"
@@ -8,6 +21,16 @@ OP_MODIFY_COLUMN_TYPE = "modify_column_type"
 OP_MODIFY_COLUMN_PERMISSION = "modify_column_permission"
 OP_MODIFY_COLUMN_METADATA_PERMISSION = "modify_column_metadata_permission"
 
+COLUMN_EVENTS = [
+    OP_INSERT_COLUMN,
+    OP_DELETE_COLUMN,
+    OP_RENAME_COLUMN,
+    OP_UPDATE_COLUMN_DESCRIPTION,
+    OP_UPDATE_COLUMN_COLORBYS,
+    OP_MODIFY_COLUMN_TYPE,
+    OP_MODIFY_COLUMN_PERMISSION,
+    OP_MODIFY_COLUMN_METADATA_PERMISSION,
+]
 
 # ROWS
 OP_INSERT_ROW = "insert_row"
@@ -18,6 +41,21 @@ OP_MODIFY_ROW = "modify_row"
 OP_MODIFY_ROWS = "modify_rows"
 OP_DELETE_ROW = "delete_row"
 OP_DELETE_ROWS = "delete_rows"
+OP_UPDATE_ROW_LINKS = "update_row_links"
+OP_UPDATE_ROWS_LINKS = "update_rows_links"
+
+ROW_EVENTS = [
+    OP_INSERT_ROW,
+    OP_INSERT_ROWS,
+    OP_APPEND_ROW,
+    OP_APPEND_ROWS,
+    OP_MODIFY_ROW,
+    OP_MODIFY_ROWS,
+    OP_DELETE_ROW,
+    OP_DELETE_ROWS,
+    OP_UPDATE_ROW_LINKS,
+    OP_UPDATE_ROWS_LINKS,
+]
 
 
 # TABLE
@@ -25,6 +63,11 @@ OP_INSERT_TABLE = "insert_table"
 OP_RENAME_TABLE = "rename_table"
 OP_DELETE_TABLE = "delete_table"
 
+TABLE_EVENTS = [
+    OP_INSERT_TABLE,
+    OP_RENAME_TABLE,
+    OP_DELETE_TABLE,
+]
 
 # VIEW
 OP_INSERT_VIEW = "insert_view"
@@ -35,7 +78,21 @@ OP_MODIFY_FILTERS = "modify_filters"
 OP_MODIFY_SORTS = "modify_sorts"
 OP_MODIFY_GROUPBYS = "modify_groupbys"
 OP_MODIFY_HIDDEN_COLUMNS = "modify_hidden_columns"
+OP_MODIFY_ROW_COLOR = "modify_row_color"
+OP_MODIFY_ROW_HEIGHT = "modify_row_height"
 
+VIEW_EVENTS = [
+    OP_INSERT_VIEW,
+    OP_DELETE_VIEW,
+    OP_RENAME_VIEW,
+    OP_MODIFY_VIEW_LOCK,
+    OP_MODIFY_FILTERS,
+    OP_MODIFY_SORTS,
+    OP_MODIFY_GROUPBYS,
+    OP_MODIFY_HIDDEN_COLUMNS,
+    OP_MODIFY_ROW_COLOR,
+    OP_MODIFY_ROW_HEIGHT,
+]
 
 # PARQUET OVERWRITE CASE
 PARQUET_OVERWRITE_EVENTS = [

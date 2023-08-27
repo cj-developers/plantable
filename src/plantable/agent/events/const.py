@@ -1,16 +1,3 @@
-from pydantic import BaseModel, Extra
-
-
-class Event(BaseModel):
-    class Config:
-        extra = Extra.forbid
-
-
-class Option(BaseModel):
-    class Config:
-        extra = Extra.forbid
-
-
 # COLUMNS
 OP_INSERT_COLUMN = "insert_column"
 OP_DELETE_COLUMN = "delete_column"
@@ -62,17 +49,20 @@ ROW_EVENTS = [
 OP_INSERT_TABLE = "insert_table"
 OP_RENAME_TABLE = "rename_table"
 OP_DELETE_TABLE = "delete_table"
+OP_MODIFY_HEADER_LOCK = "modify_header_lock"
 
 TABLE_EVENTS = [
     OP_INSERT_TABLE,
     OP_RENAME_TABLE,
     OP_DELETE_TABLE,
+    OP_MODIFY_HEADER_LOCK,
 ]
 
 # VIEW
 OP_INSERT_VIEW = "insert_view"
 OP_DELETE_VIEW = "delete_view"
 OP_RENAME_VIEW = "rename_view"
+OP_MODIFY_VIEW_TYPE = "modify_view_type"
 OP_MODIFY_VIEW_LOCK = "modify_view_lock"
 OP_MODIFY_FILTERS = "modify_filters"
 OP_MODIFY_SORTS = "modify_sorts"
@@ -85,6 +75,7 @@ VIEW_EVENTS = [
     OP_INSERT_VIEW,
     OP_DELETE_VIEW,
     OP_RENAME_VIEW,
+    OP_MODIFY_VIEW_TYPE,
     OP_MODIFY_VIEW_LOCK,
     OP_MODIFY_FILTERS,
     OP_MODIFY_SORTS,

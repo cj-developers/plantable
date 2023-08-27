@@ -1,40 +1,18 @@
 from typing import List
 
 from pydantic import BaseModel
+
 from .const import (
-    Event,
-    Option,
-    OP_INSERT_COLUMN,
     OP_DELETE_COLUMN,
-    OP_RENAME_COLUMN,
-    OP_UPDATE_COLUMN_DESCRIPTION,
-    OP_UPDATE_COLUMN_COLORBYS,
-    OP_MODIFY_COLUMN_TYPE,
-    OP_MODIFY_COLUMN_PERMISSION,
+    OP_INSERT_COLUMN,
     OP_MODIFY_COLUMN_METADATA_PERMISSION,
+    OP_MODIFY_COLUMN_PERMISSION,
+    OP_MODIFY_COLUMN_TYPE,
+    OP_RENAME_COLUMN,
+    OP_UPDATE_COLUMN_COLORBYS,
+    OP_UPDATE_COLUMN_DESCRIPTION,
 )
-
-
-class Column(Option):
-    rowType: str = None
-    key: str  # "4xVF",
-    type: str  # "text",
-    name: str  # "hello",
-    editable: bool  # True,
-    width: int  # 200,
-    resizable: bool  # True,
-    draggable: bool  # True,
-    data: dict
-    permission_type: str = None  # ""
-    permitted_users: list = None  # []
-    edit_metadata_permission_type: str  # ""
-    edit_metadata_permitted_users: list  # []
-    description: str = None
-    editor: dict = None
-    formatter: dict = None
-    idx: int = None
-    left: int = None
-    last_frozen: bool = None
+from .model import Column, ColumnMetadataPermission, ColumnPermission, Event
 
 
 ################################################################
@@ -80,25 +58,15 @@ class ModifyColumnType(ColumnEvent):
 
 
 # Modify Column Permission
-class ColumnPermission(Option):
-    permission_type: str
-    permitted_users: List[str]
-
-
 class ModifyColumnPermission(ColumnEvent):
     new_column_permission: ColumnPermission
     old_column_permission: ColumnPermission
 
 
 # Modify Column Metadata Permission
-class MetadataPermission(Option):
-    edit_metadata_permission_type: str
-    edit_metadata_permitted_users: List[str]
-
-
 class ModifyColumnMetadataPermission(ColumnEvent):
-    new_column_permission: MetadataPermission
-    old_column_permission: MetadataPermission
+    new_column_permission: ColumnMetadataPermission
+    old_column_permission: ColumnMetadataPermission
 
 
 ################################################################

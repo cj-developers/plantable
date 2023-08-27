@@ -485,6 +485,12 @@ sample_delete_table = {
     },
 }
 
+sample_header_lock = {
+    "op_type": "modify_header_lock",
+    "table_id": "hNbE",
+    "is_header_locked": False,
+}
+
 ################################################################
 # View Events
 ################################################################
@@ -531,6 +537,14 @@ sample_rename_view = {
     "table_id": "wMtQ",
     "view_id": "ht2Q",
     "view_name": "test_again",
+}
+
+# Modify View Type (Big Data)
+sample_modify_view_type = {
+    "op_type": "modify_view_type",
+    "table_id": "hNbE",
+    "view_id": "0oPc",
+    "view_type": "archive",
 }
 
 # Modify View Lock

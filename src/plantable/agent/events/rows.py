@@ -1,8 +1,7 @@
 from pydantic import BaseModel
 
+from .model import Event
 from .const import (
-    Event,
-    Option,
     OP_INSERT_ROW,
     OP_INSERT_ROWS,
     OP_DELETE_ROW,

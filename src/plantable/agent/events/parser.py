@@ -1,6 +1,7 @@
+from .columns import column_event_parser
 from .const import COLUMN_EVENTS, ROW_EVENTS, TABLE_EVENTS, VIEW_EVENTS
 from .rows import row_event_parser
-from .columns import column_event_parser
+from .table import table_event_parser
 from .view import view_event_parser
 
 
@@ -14,7 +15,7 @@ def event_parser(data):
         return row_event_parser(data)
 
     if op_type in TABLE_EVENTS:
-        pass
+        return table_event_parser(data)
 
     if op_type in VIEW_EVENTS:
         return view_event_parser(data)

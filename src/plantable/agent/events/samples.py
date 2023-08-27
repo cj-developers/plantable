@@ -1,4 +1,315 @@
 ################################################################
+# Row Events
+################################################################
+# Insert Row
+sample_insert_row = {
+    "op_type": "insert_row",
+    "table_id": "wMtQ",
+    "row_id": "a4MUb9F2Sb6erVSK-WWCkA",
+    "row_insert_position": "insert_below",
+    "row_data": {
+        "_id": "FPFMs5blRR-SpLV1sk676g",
+        "_participants": [],
+        "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+        "_ctime": "2023-08-20T04:59:21.673+00:00",
+        "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+        "_mtime": "2023-08-20T04:59:21.673+00:00",
+    },
+    "links_data": {},
+    "key_auto_number_config": {},
+}
+
+# Insert Rows
+sample_insert_rows = {
+    "op_type": "insert_rows",
+    "table_id": "wMtQ",
+    "row_ids": ["FPFMs5blRR-SpLV1sk676g", "NLEm269CSaO3gy7Cm2ZrvQ"],
+    "row_insert_position": "insert_below",
+    "row_datas": [
+        {
+            "_id": "NLEm269CSaO3gy7Cm2ZrvQ",
+            "_participants": [],
+            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_ctime": "2023-08-20T04:59:35.211+00:00",
+            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_mtime": "2023-08-20T04:59:35.211+00:00",
+            "0000": "",
+        },
+        {
+            "_id": "I0n3PtjORke3ubWq5B54GQ",
+            "_participants": [],
+            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_ctime": "2023-08-20T04:59:35.211+00:00",
+            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_mtime": "2023-08-20T04:59:35.211+00:00",
+            "0000": "",
+        },
+    ],
+    "links_data": {},
+    "key_auto_number_config": {},
+}
+
+
+# Append Rows (Append Row는 없음)
+sample_append_rows = {
+    "op_type": "append_rows",
+    "table_id": "wMtQ",
+    "row_datas": [
+        {
+            "0000": "w.cho@cj.net",
+            "HkRD": "조우진",
+            "sAd6": "DT플랫폼팀",
+            "WD7B": "",
+            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_id": "F7ze485HTAKfrZmCZYqb1g",
+            "_ctime": "2023-08-20T05:15:42.105+00:00",
+            "_mtime": "2023-08-20T05:15:42.105+00:00",
+        },
+        {
+            "0000": "w.cho@cj.net",
+            "HkRD": "a",
+            "sAd6": "",
+            "WD7B": "",
+            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_id": "ONBSOt73RieaD7O0m4LiaA",
+            "_ctime": "2023-08-20T05:15:42.106+00:00",
+            "_mtime": "2023-08-20T05:15:42.106+00:00",
+        },
+    ],
+    "key_auto_number_config": {},
+}
+
+# Modify Row
+sample_modify_row = {
+    "op_type": "modify_row",
+    "table_id": "wMtQ",
+    "row_id": "FPFMs5blRR-SpLV1sk676g",
+    "updated": {
+        "HkRD": "a",
+        "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+    },
+    "old_row": {},
+}
+
+# Modify Rows
+sample_modify_rows = {
+    "op_type": "modify_rows",
+    "table_id": "wMtQ",
+    "row_ids": ["X-jLvmZQRq-lMgp6X1zPgw", "a4MUb9F2Sb6erVSK-WWCkA"],
+    "updated": {
+        "X-jLvmZQRq-lMgp6X1zPgw": {
+            "HkRD": "a",
+            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+        },
+        "a4MUb9F2Sb6erVSK-WWCkA": {
+            "HkRD": "a",
+            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+        },
+    },
+    "old_rows": {
+        "X-jLvmZQRq-lMgp6X1zPgw": {"HkRD": None},
+        "a4MUb9F2Sb6erVSK-WWCkA": {"HkRD": None},
+    },
+}
+
+# Delete Row
+sample_delete_row = {
+    "op_type": "delete_row",
+    "table_id": "wMtQ",
+    "row_id": "bH1cdZboS7WOg_qpjUkOXw",
+    "deleted_row": {
+        "_id": "bH1cdZboS7WOg_qpjUkOXw",
+        "_participants": [],
+        "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+        "_ctime": "2023-08-20T04:37:21.579+00:00",
+        "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+        "_mtime": "2023-08-20T04:37:21.587+00:00",
+        "0000": "",
+    },
+    "upper_row_id": "JmsWPdqgT4irjvxAyKBxlA",
+    "deleted_links_data": {},
+}
+
+# Delete Rows
+sample_delete_rows = {
+    "op_type": "delete_rows",
+    "table_id": "wMtQ",
+    "row_ids": ["NwkAMFWgTzO6A8ugLyMzMQ", "JmsWPdqgT4irjvxAyKBxlA"],
+    "deleted_rows": [
+        {
+            "_id": "NwkAMFWgTzO6A8ugLyMzMQ",
+            "_participants": [],
+            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_ctime": "2023-08-20T04:33:50.072+00:00",
+            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_mtime": "2023-08-20T04:33:50.072+00:00",
+        },
+        {
+            "_id": "JmsWPdqgT4irjvxAyKBxlA",
+            "_participants": [],
+            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_ctime": "2023-08-20T04:37:21.579+00:00",
+            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
+            "_mtime": "2023-08-20T04:37:21.587+00:00",
+            "0000": "",
+        },
+    ],
+    "upper_row_ids": ["H2Ib-4kxRWmlxIo2ft0IGQ", "X-jLvmZQRq-lMgp6X1zPgw"],
+    "deleted_links_data": {},
+}
+
+
+# Update Rows Links
+sample_update_rows_links = {
+    "op_type": "update_rows_links",
+    "link_id": "t4hs",
+    "table_id": "hNbE",
+    "other_table_id": "ric6",
+    "row_id_list": ["VHUU0Fx3T9qagNXpDXiQnw", "QFwE8A2fT92ZGUt_tK3s1Q"],
+    "other_rows_ids_map": {
+        "VHUU0Fx3T9qagNXpDXiQnw": ["Z6sr4Z5wQ_6b1AMRxQzZgg"],
+        "QFwE8A2fT92ZGUt_tK3s1Q": ["Z6sr4Z5wQ_6b1AMRxQzZgg"],
+    },
+    "old_other_rows_ids_map": {"VHUU0Fx3T9qagNXpDXiQnw": [], "QFwE8A2fT92ZGUt_tK3s1Q": []},
+}
+
+# Archive Rows
+sample_archive_rows = {"op_type": "archive_rows", "table_id": "04Af", "row_ids": ["NGsQGjTlSN6_qbAiAi1Skw"]}
+
+
+################################################################
+# Table Events
+################################################################
+# Insert Table
+sample_insert_table = {
+    "op_type": "insert_table",
+    "table_data": {
+        "_id": "D4S8",
+        "name": "Table3",
+        "is_header_locked": False,
+        "header_settings": {},
+        "summary_configs": {},
+        "columns": [
+            {
+                "key": "0000",
+                "type": "text",
+                "name": "Name",
+                "editable": True,
+                "width": 200,
+                "resizable": True,
+                "draggable": True,
+                "data": None,
+                "permission_type": "",
+                "permitted_users": [],
+                "edit_metadata_permission_type": "",
+                "edit_metadata_permitted_users": [],
+                "description": None,
+            }
+        ],
+        "rows": [],
+        "view_structure": {"folders": [], "view_ids": ["0000"]},
+        "views": [
+            {
+                "_id": "0000",
+                "name": "Default View",
+                "type": "table",
+                "private_for": None,
+                "is_locked": False,
+                "row_height": "default",
+                "filter_conjunction": "And",
+                "filters": [],
+                "sorts": [],
+                "groupbys": [],
+                "colorbys": {},
+                "hidden_columns": [],
+                "rows": [],
+                "formula_rows": {},
+                "link_rows": {},
+                "summaries": {},
+                "colors": {},
+                "column_colors": {},
+                "groups": [],
+            }
+        ],
+        "id_row_map": {},
+    },
+}
+
+# Rename Table
+sample_rename_table = {
+    "op_type": "rename_table",
+    "table_id": "0000",
+    "table_name": "Table_Renamed",
+}
+
+# Delete Table
+sample_delete_table = {
+    "op_type": "delete_table",
+    "table_id": "CzsA",
+    "table_name": "Table3(copy)",
+    "deleted_table": {
+        "_id": "CzsA",
+        "name": "Table3(copy)",
+        "is_header_locked": False,
+        "columns": [
+            {
+                "key": "0000",
+                "type": "text",
+                "name": "Name",
+                "editable": True,
+                "width": 200,
+                "resizable": True,
+                "draggable": True,
+                "data": None,
+                "permission_type": "",
+                "permitted_users": [],
+                "edit_metadata_permission_type": "",
+                "edit_metadata_permitted_users": [],
+                "description": None,
+                "editor": {"key": None, "ref": None, "props": {}, "_owner": None},
+                "formatter": {"key": None, "ref": None, "props": {}, "_owner": None},
+            }
+        ],
+        "rows": [],
+        "id_row_map": {},
+        "view_structure": {"folders": [], "view_ids": ["0000"]},
+        "views": [
+            {
+                "_id": "0000",
+                "name": "Default View",
+                "type": "table",
+                "private_for": None,
+                "is_locked": False,
+                "row_height": "default",
+                "filter_conjunction": "And",
+                "filters": [],
+                "sorts": [],
+                "groupbys": [],
+                "colorbys": {},
+                "hidden_columns": [],
+                "rows": [],
+                "formula_rows": {},
+                "link_rows": {},
+                "summaries": {},
+                "colors": {},
+                "column_colors": {},
+                "groups": [],
+            }
+        ],
+        "header_settings": {},
+    },
+}
+
+sample_header_lock = {
+    "op_type": "modify_header_lock",
+    "table_id": "hNbE",
+    "is_header_locked": False,
+}
+
+
+################################################################
 # Column Events
 ################################################################
 # Insert Column [DONE]
@@ -184,312 +495,6 @@ sample_update_column_colorybys = {
     },
 }
 
-################################################################
-# Row Events
-################################################################
-# Insert Row
-sample_insert_row = {
-    "op_type": "insert_row",
-    "table_id": "wMtQ",
-    "row_id": "a4MUb9F2Sb6erVSK-WWCkA",
-    "row_insert_position": "insert_below",
-    "row_data": {
-        "_id": "FPFMs5blRR-SpLV1sk676g",
-        "_participants": [],
-        "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-        "_ctime": "2023-08-20T04:59:21.673+00:00",
-        "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-        "_mtime": "2023-08-20T04:59:21.673+00:00",
-    },
-    "links_data": {},
-    "key_auto_number_config": {},
-}
-
-# Insert Rows
-sample_insert_rows = {
-    "op_type": "insert_rows",
-    "table_id": "wMtQ",
-    "row_ids": ["FPFMs5blRR-SpLV1sk676g", "NLEm269CSaO3gy7Cm2ZrvQ"],
-    "row_insert_position": "insert_below",
-    "row_datas": [
-        {
-            "_id": "NLEm269CSaO3gy7Cm2ZrvQ",
-            "_participants": [],
-            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_ctime": "2023-08-20T04:59:35.211+00:00",
-            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_mtime": "2023-08-20T04:59:35.211+00:00",
-            "0000": "",
-        },
-        {
-            "_id": "I0n3PtjORke3ubWq5B54GQ",
-            "_participants": [],
-            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_ctime": "2023-08-20T04:59:35.211+00:00",
-            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_mtime": "2023-08-20T04:59:35.211+00:00",
-            "0000": "",
-        },
-    ],
-    "links_data": {},
-    "key_auto_number_config": {},
-}
-
-
-# Append Rows (Append Row는 없음)
-sample_append_rows = {
-    "op_type": "append_rows",
-    "table_id": "wMtQ",
-    "row_datas": [
-        {
-            "0000": "w.cho@cj.net",
-            "HkRD": "조우진",
-            "sAd6": "DT플랫폼팀",
-            "WD7B": "",
-            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_id": "F7ze485HTAKfrZmCZYqb1g",
-            "_ctime": "2023-08-20T05:15:42.105+00:00",
-            "_mtime": "2023-08-20T05:15:42.105+00:00",
-        },
-        {
-            "0000": "w.cho@cj.net",
-            "HkRD": "a",
-            "sAd6": "",
-            "WD7B": "",
-            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_id": "ONBSOt73RieaD7O0m4LiaA",
-            "_ctime": "2023-08-20T05:15:42.106+00:00",
-            "_mtime": "2023-08-20T05:15:42.106+00:00",
-        },
-    ],
-    "key_auto_number_config": {},
-}
-
-# Modify Row
-sample_modify_row = {
-    "op_type": "modify_row",
-    "table_id": "wMtQ",
-    "row_id": "FPFMs5blRR-SpLV1sk676g",
-    "updated": {
-        "HkRD": "a",
-        "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-    },
-    "old_row": {},
-}
-
-# Modify Rows
-sample_modify_rows = {
-    "op_type": "modify_rows",
-    "table_id": "wMtQ",
-    "row_ids": ["X-jLvmZQRq-lMgp6X1zPgw", "a4MUb9F2Sb6erVSK-WWCkA"],
-    "updated": {
-        "X-jLvmZQRq-lMgp6X1zPgw": {
-            "HkRD": "a",
-            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-        },
-        "a4MUb9F2Sb6erVSK-WWCkA": {
-            "HkRD": "a",
-            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-        },
-    },
-    "old_rows": {
-        "X-jLvmZQRq-lMgp6X1zPgw": {"HkRD": None},
-        "a4MUb9F2Sb6erVSK-WWCkA": {"HkRD": None},
-    },
-}
-
-# Delete Row
-sample_delete_row = {
-    "op_type": "delete_row",
-    "table_id": "wMtQ",
-    "row_id": "bH1cdZboS7WOg_qpjUkOXw",
-    "deleted_row": {
-        "_id": "bH1cdZboS7WOg_qpjUkOXw",
-        "_participants": [],
-        "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-        "_ctime": "2023-08-20T04:37:21.579+00:00",
-        "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-        "_mtime": "2023-08-20T04:37:21.587+00:00",
-        "0000": "",
-    },
-    "upper_row_id": "JmsWPdqgT4irjvxAyKBxlA",
-    "deleted_links_data": {},
-}
-
-# Delete Rows
-sample_delete_rows = {
-    "op_type": "delete_rows",
-    "table_id": "wMtQ",
-    "row_ids": ["NwkAMFWgTzO6A8ugLyMzMQ", "JmsWPdqgT4irjvxAyKBxlA"],
-    "deleted_rows": [
-        {
-            "_id": "NwkAMFWgTzO6A8ugLyMzMQ",
-            "_participants": [],
-            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_ctime": "2023-08-20T04:33:50.072+00:00",
-            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_mtime": "2023-08-20T04:33:50.072+00:00",
-        },
-        {
-            "_id": "JmsWPdqgT4irjvxAyKBxlA",
-            "_participants": [],
-            "_creator": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_ctime": "2023-08-20T04:37:21.579+00:00",
-            "_last_modifier": "2926d3fa3a364558bac8a550811dbe0e@auth.local",
-            "_mtime": "2023-08-20T04:37:21.587+00:00",
-            "0000": "",
-        },
-    ],
-    "upper_row_ids": ["H2Ib-4kxRWmlxIo2ft0IGQ", "X-jLvmZQRq-lMgp6X1zPgw"],
-    "deleted_links_data": {},
-}
-
-
-# Update Row Links
-{
-    "op_type": "update_rows_links",
-    "link_id": "t4hs",
-    "table_id": "hNbE",
-    "other_table_id": "ric6",
-    "row_id_list": ["VHUU0Fx3T9qagNXpDXiQnw", "QFwE8A2fT92ZGUt_tK3s1Q"],
-    "other_rows_ids_map": {
-        "VHUU0Fx3T9qagNXpDXiQnw": ["Z6sr4Z5wQ_6b1AMRxQzZgg"],
-        "QFwE8A2fT92ZGUt_tK3s1Q": ["Z6sr4Z5wQ_6b1AMRxQzZgg"],
-    },
-    "old_other_rows_ids_map": {"VHUU0Fx3T9qagNXpDXiQnw": [], "QFwE8A2fT92ZGUt_tK3s1Q": []},
-}
-
-
-################################################################
-# Table Events
-################################################################
-# Insert Table
-sample_insert_table = {
-    "op_type": "insert_table",
-    "table_data": {
-        "_id": "D4S8",
-        "name": "Table3",
-        "is_header_locked": False,
-        "header_settings": {},
-        "summary_configs": {},
-        "columns": [
-            {
-                "key": "0000",
-                "type": "text",
-                "name": "Name",
-                "editable": True,
-                "width": 200,
-                "resizable": True,
-                "draggable": True,
-                "data": None,
-                "permission_type": "",
-                "permitted_users": [],
-                "edit_metadata_permission_type": "",
-                "edit_metadata_permitted_users": [],
-                "description": None,
-            }
-        ],
-        "rows": [],
-        "view_structure": {"folders": [], "view_ids": ["0000"]},
-        "views": [
-            {
-                "_id": "0000",
-                "name": "Default View",
-                "type": "table",
-                "private_for": None,
-                "is_locked": False,
-                "row_height": "default",
-                "filter_conjunction": "And",
-                "filters": [],
-                "sorts": [],
-                "groupbys": [],
-                "colorbys": {},
-                "hidden_columns": [],
-                "rows": [],
-                "formula_rows": {},
-                "link_rows": {},
-                "summaries": {},
-                "colors": {},
-                "column_colors": {},
-                "groups": [],
-            }
-        ],
-        "id_row_map": {},
-    },
-}
-
-# Rename Table
-sample_rename_table = {
-    "op_type": "rename_table",
-    "table_id": "0000",
-    "table_name": "Table_Renamed",
-}
-
-# Delete Table
-sample_delete_table = {
-    "op_type": "delete_table",
-    "table_id": "CzsA",
-    "table_name": "Table3(copy)",
-    "deleted_table": {
-        "_id": "CzsA",
-        "name": "Table3(copy)",
-        "is_header_locked": False,
-        "columns": [
-            {
-                "key": "0000",
-                "type": "text",
-                "name": "Name",
-                "editable": True,
-                "width": 200,
-                "resizable": True,
-                "draggable": True,
-                "data": None,
-                "permission_type": "",
-                "permitted_users": [],
-                "edit_metadata_permission_type": "",
-                "edit_metadata_permitted_users": [],
-                "description": None,
-                "editor": {"key": None, "ref": None, "props": {}, "_owner": None},
-                "formatter": {"key": None, "ref": None, "props": {}, "_owner": None},
-            }
-        ],
-        "rows": [],
-        "id_row_map": {},
-        "view_structure": {"folders": [], "view_ids": ["0000"]},
-        "views": [
-            {
-                "_id": "0000",
-                "name": "Default View",
-                "type": "table",
-                "private_for": None,
-                "is_locked": False,
-                "row_height": "default",
-                "filter_conjunction": "And",
-                "filters": [],
-                "sorts": [],
-                "groupbys": [],
-                "colorbys": {},
-                "hidden_columns": [],
-                "rows": [],
-                "formula_rows": {},
-                "link_rows": {},
-                "summaries": {},
-                "colors": {},
-                "column_colors": {},
-                "groups": [],
-            }
-        ],
-        "header_settings": {},
-    },
-}
-
-sample_header_lock = {
-    "op_type": "modify_header_lock",
-    "table_id": "hNbE",
-    "is_header_locked": False,
-}
 
 ################################################################
 # View Events
@@ -537,6 +542,18 @@ sample_rename_view = {
     "table_id": "wMtQ",
     "view_id": "ht2Q",
     "view_name": "test_again",
+}
+
+# Move View
+sample_move_view = {
+    "op_type": "move_view",
+    "table_id": "04Af",
+    "moved_view_id": "9kc1",
+    "target_view_id": "0000",
+    "source_view_folder_id": None,
+    "target_view_folder_id": None,
+    "move_position": "move_above",
+    "moved_view_name": "Raw",
 }
 
 # Modify View Type (Big Data)

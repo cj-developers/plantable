@@ -1,7 +1,7 @@
 {
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "ms-python.black-formatter",
-    "black-formatter.args": ["--line-length", "100"],
+    "black-formatter.args": ["--line-length", "119"],
     "flake8.args": [
         "--ignore=E266,E302,E501,E999,F401,F402,F403,F541,F741,F841",
         "--verbose"

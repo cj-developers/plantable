@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 
 from .model import Event
 from .const import (
@@ -12,6 +12,8 @@ from .const import (
     OP_MODIFY_ROWS,
     OP_UPDATE_ROW_LINKS,
     OP_UPDATE_ROWS_LINKS,
+    OP_ARCHIVE_ROW,
+    OP_ARCHIVE_ROWS,
 )
 
 
@@ -32,6 +34,12 @@ class InsertRow(RowEvent):
     row_data: dict
     links_data: dict = None
     key_auto_number_config: dict
+
+    @root_validator(pre=True)
+    def adjust_row_id(cls, values):
+        values["anchor_row_id"] = values["row_id"]
+        values.update({"row_id": values["row_data"]["_id"]})
+        return values
 
 
 # Append Row
@@ -60,6 +68,11 @@ class UpdateRowLinks(RowEvent):
     old_other_row_ids_map: dict
 
 
+# ArchiveRows
+class ArchiveRow(RowEvent):
+    pass
+
+
 ################################################################
 # Parser
 ################################################################
@@ -68,26 +81,14 @@ def row_event_parser(data):
 
     # INSERT
     if op_type == OP_INSERT_ROW:
-        return [
-            InsertRow(
-                op_type=data["op_type"],
-                table_id=data["table_id"],
-                row_id=data["row_data"]["_id"],
-                anchor_row_id=data["row_id"],
-                row_insert_position=data["row_insert_position"],
-                row_data=data["row_data"],
-                links_data=data["links_data"],
-                key_auto_number_config=data["key_auto_number_config"],
-            )
-        ]
+        return [InsertRow(**data)]
 
     if op_type == OP_INSERT_ROWS:
         return [
             InsertRow(
                 op_type=OP_INSERT_ROW,
                 table_id=data["table_id"],
-                row_id=row_data["_id"],
-                anchor_row_id=row_id,
+                row_id=row_id,
                 row_insert_position=data["row_insert_position"],
                 row_data=row_data,
                 links_data=data["links_data"],
@@ -142,9 +143,7 @@ def row_event_parser(data):
                 upper_row_id=upper_row_id,
                 deleted_links_data=data["deleted_links_data"],
             )
-            for row_id, deleted_row, upper_row_id in zip(
-                data["row_ids"], data["deleted_rows"], data["upper_row_ids"]
-            )
+            for row_id, deleted_row, upper_row_id in zip(data["row_ids"], data["deleted_rows"], data["upper_row_ids"])
         ]
 
     # UPDATE ROW LINK
@@ -163,6 +162,12 @@ def row_event_parser(data):
                 data["other_rows_ids_map"].items(),
                 data["old_other_rows_ids_map"].items(),
             )
+        ]
+
+    # ARCHIVE ROWS
+    if op_type == OP_ARCHIVE_ROWS:
+        return [
+            ArchiveRow(op_type=OP_ARCHIVE_ROW, table_id=data["table_id"], row_id=row_id) for row_id in data["row_ids"]
         ]
 
     _msg = f"Row Parser - Unknown op_type '{op_type}'!"

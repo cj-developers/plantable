@@ -1,6 +1,6 @@
 from typing import List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 
 from .const import (
     OP_DELETE_COLUMN,
@@ -27,9 +27,16 @@ class ColumnEvent(Event):
 
 # Insert Column
 class InsertColumn(ColumnEvent):
+    anchor_column_key: str
     column_data: Column
     view_id: str
     rows_datas: list
+
+    @root_validator(pre=True)
+    def adjust_column_key(cls, values):
+        values["anchor_column_key"] = values["column_key"]
+        values.update({"column_key": values["column_data"]["key"]})
+        return values
 
 
 # Delete Column

@@ -1,6 +1,6 @@
 from typing import List
 
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, root_validator, Field
 
 from .const import (
     OP_DELETE_VIEW,
@@ -14,6 +14,7 @@ from .const import (
     OP_MODIFY_ROW_HEIGHT,
     OP_MODIFY_SORTS,
     OP_RENAME_VIEW,
+    OP_MOVE_VIEW,
 )
 from .model import Event, View, Sort, Filter, Groupby
 
@@ -48,6 +49,16 @@ class DeleteView(ViewEvent):
 # Rename View
 class RenameView(ViewEvent):
     view_name: str
+
+
+# Move View
+class MoveView(ViewEvent):
+    view_id: str = Field(alias="moved_view_id")
+    target_view_id: str
+    source_view_folder_id: str = None
+    target_view_folder_id: str = None
+    move_position: str
+    moved_view_name: str
 
 
 # Modify View Type
@@ -129,6 +140,9 @@ def view_event_parser(data):
 
     if op_type == OP_MODIFY_ROW_HEIGHT:
         return [ModifyRowHeight(**data)]
+
+    if op_type == OP_MOVE_VIEW:
+        return [MoveView(**data)]
 
     _msg = f"view_parser - unknown op_type '{op_type}'."
     raise KeyError(_msg)

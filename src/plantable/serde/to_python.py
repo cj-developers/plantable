@@ -18,21 +18,18 @@ class ToPythonDict:
         self.users = users
 
         self.columns = {
-            **{
-                column.name: {"column_type": column.type, "column_data": column.data}
-                for column in table.columns
-            },
+            **{column.name: {"column_type": column.type, "column_data": column.data} for column in table.columns},
             **SYSTEM_FIELDS,
         }
 
         self.user_map = (
-            {user.email: f"{user.name} ({user.contact_email})" for user in self.users}
-            if self.users
-            else None
+            {user.email: f"{user.name} ({user.contact_email})" for user in self.users} if self.users else None
         )
         self.row_id_map = {column.key: column.name for column in table.columns}
 
     def __call__(self, row):
+        if row is None:
+            return
         return {
             column: getattr(self, self.columns[column]["column_type"].replace("-", "_"))(
                 value=row[column], data=self.columns[column].get("column_data")
@@ -101,6 +98,8 @@ class ToPythonDict:
         return value
 
     def link(self, value: List[Any], data: dict = None) -> list:
+        if not value:
+            return value
         value = [x["display_value"] for x in value]
         if not value:
             return
@@ -145,6 +144,8 @@ class ToPythonDict:
         return self.user(value)
 
     def file(self, value, data: dict = None):
+        if value is None:
+            return
         return [x["url"] for x in value]
 
     def image(self, value, data: dict = None):

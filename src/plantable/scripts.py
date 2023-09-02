@@ -27,8 +27,8 @@ def agent():
 @click.option("--seatable-url", default=None)
 @click.option("--seatable-username", default=None)
 @click.option("--seatable-password", default=None)
-@click.option("--redis-host", default=None)
-@click.option("--redis-port", default=None)
+@click.option("--redis-host", default="localhost")
+@click.option("--redis-port", default=6379)
 @click.option("--log-level", default=logging.WARNING, type=LogLevel())
 def run_producer(seatable_url, seatable_username, seatable_password, redis_host, redis_port, log_level):
     import asyncio

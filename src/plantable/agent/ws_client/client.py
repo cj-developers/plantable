@@ -43,13 +43,8 @@ class BaseWebsocketClient(socketio.AsyncClient):
         seatable_password: str = SEATABLE_PASSWORD,
         handler: Callable = None,
         request_timeout: int = 30,
-        reconnection=True,
         reconnection_attempts=40,
         reconnection_delay=3,
-        logger=False,
-        binary=False,
-        json=None,
-        **kwargs,
     ):
         # account
         self.seatable_url = seatable_url
@@ -66,15 +61,10 @@ class BaseWebsocketClient(socketio.AsyncClient):
         # websocket io
         super().__init__(
             request_timeout=request_timeout,
-            reconnection=reconnection,
             reconnection_attempts=reconnection_attempts,
             reconnection_delay=reconnection_delay,
             reconnection_delay_max=reconnection_delay,
             randomization_factor=0,
-            logger=logger,
-            binary=binary,
-            json=json,
-            **kwargs,
         )
 
         # plantable client

@@ -19,12 +19,17 @@ class Producer:
         seatable_password: str = SEATABLE_PASSWORD,
         handler: Callable = None,
         wait_for: float = 2.0,
+        ws_reconnection_delay=3,
+        ws_reconnection_attempts=40,
     ):
         self.seatable_url = seatable_url
         self.seatable_username = seatable_username
         self.seatable_password = seatable_password
         self.handler = handler
         self.wait_for = wait_for
+
+        self.ws_reconnection_delay = ws_reconnection_delay
+        self.ws_reconnection_attempts = ws_reconnection_attempts
 
         self.client = AdminClient(
             seatable_url=self.seatable_url,
@@ -115,6 +120,8 @@ class Producer:
             seatable_username=self.seatable_username,
             seatable_password=self.seatable_password,
             handler=self.handler,
+            reconnection_delay=self.ws_reconnection_attempts,
+            reconnection_attempts=self.ws_reconnection_attempts,
         )
         try:
             await client.run()

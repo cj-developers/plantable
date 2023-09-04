@@ -373,10 +373,19 @@ class BaseClient(HttpClient):
         # insert_below or insert_above
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-append-rows/"
-        JSON = {"table_name": table_name, "rows": rows}
+
+        # divide chunk - [NOTE] 1000 rows까지만 됨
+        UPDATE_LIMIT = 1000
+        chunks = divide_chunks(rows, UPDATE_LIMIT)
+        list_json = [{"table_name": table_name, "rows": chunk} for chunk in chunks]
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            coros = [self.request(session=session, method=METHOD, url=URL, json=json) for json in list_json]
+            list_results = await asyncio.gather(*coros)
+
+        results = {"inserted_row_count": 0}
+        for r in list_results:
+            results["inserted_row_count"] += r["inserted_row_count"]
 
         return results
 
@@ -386,14 +395,24 @@ class BaseClient(HttpClient):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-update-rows/"
 
-        # divide chunk
+        # divide chunk - [NOTE] 1000 rows까지만 됨
         UPDATE_LIMIT = 1000
         chunks = divide_chunks(updates, UPDATE_LIMIT)
         list_json = [{"table_name": table_name, "updates": chunk} for chunk in chunks]
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             coros = [self.request(session=session, method=METHOD, url=URL, json=json) for json in list_json]
-            results = await asyncio.gather(*coros)
+            list_results = await asyncio.gather(*coros)
+
+        results = None
+        for r in list_results:
+            if isinstance(r, Exception):
+                raise r
+            if not r["success"]:
+                results = r
+                break
+        else:
+            results = r
 
         return results
 

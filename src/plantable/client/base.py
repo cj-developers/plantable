@@ -26,6 +26,7 @@ from ..model import (
     BaseToken,
     Column,
     Metadata,
+    SelectOption,
     Table,
     Team,
     User,
@@ -325,6 +326,9 @@ class BaseClient(HttpClient):
                 }
             )
 
+        # add select options if not exists
+        _ = await self.add_select_options_if_not_exists(table_name=table_name, rows=[row])
+
         async with self.session_maker(token=self.base_token.access_token) as session:
             results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
 
@@ -337,6 +341,9 @@ class BaseClient(HttpClient):
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
         JSON = {"table_name": table_name, "row_id": row_id, "row": row}
         ITEM = "success"
+
+        # add select options if not exists
+        _ = await self.add_select_options_if_not_exists(table_name=table_name, rows=[row])
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
@@ -374,6 +381,9 @@ class BaseClient(HttpClient):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-append-rows/"
 
+        # add select options if not exists
+        _ = await self.add_select_options_if_not_exists(table_name=table_name, rows=rows)
+
         # divide chunk - [NOTE] 1000 rows까지만 됨
         UPDATE_LIMIT = 1000
         chunks = divide_chunks(rows, UPDATE_LIMIT)
@@ -394,6 +404,11 @@ class BaseClient(HttpClient):
         # updates = [{"row_id": xxx, "row": {"key": "value"}}, ...]
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-update-rows/"
+
+        # add select options if not exists
+        _ = await self.add_select_options_if_not_exists(
+            table_name=table_name, rows=[update["row"] for update in updates]
+        )
 
         # divide chunk - [NOTE] 1000 rows까지만 됨
         UPDATE_LIMIT = 1000
@@ -812,6 +827,52 @@ class BaseClient(HttpClient):
     ################################################################
     # COLUMNS
     ################################################################
+    async def add_select_options(
+        self, table_name: str, column_name: str, options: List[SelectOption], model: BaseModel = None
+    ):
+        METHOD = "POST"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/column-options/"
+        JSON = {
+            "table_name": table_name,
+            "column": column_name,
+            "options": [opt.dict(exclude_none=True) for opt in options],
+        }
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+
+        if model:
+            results = model(**results)
+
+        return results
+
+    # (custom) add select options if not exists
+    async def add_select_options_if_not_exists(self, table_name: str, rows: List[dict]):
+        table = await self.get_table(table_name=table_name)
+        columns_and_options = {
+            c.name: [o["name"] for o in c.data["options"]]
+            for c in table.columns
+            if c.type in ["single-select", "multiple-select"]
+        }
+
+        if not columns_and_options:
+            return
+
+        options = {c: set([r.get(c) for r in rows]) for c in columns_and_options}
+        options_to_add = dict()
+        for column_name, column_options in options.items():
+            for column_opt in column_options:
+                if column_opt not in columns_and_options[column_name]:
+                    if column_name not in options_to_add:
+                        options_to_add[column_name] = list()
+                    options_to_add[column_name].append(SelectOption(name=column_opt))
+
+        coros = [
+            self.add_select_options(table_name=table_name, column_name=column_name, options=options)
+            for column_name, options in options_to_add.items()
+        ]
+
+        return await asyncio.gather(*coros)
 
     ################################################################
     # BIG DATA

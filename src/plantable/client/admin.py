@@ -55,10 +55,7 @@ class AdminClient(AccountClient):
 
             # all pages
             pages = range(2, response["total_count"] + 1, 25)
-            coros = [
-                self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS)
-                for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [user for response in responses for user in response[ITEM]]
 
@@ -188,9 +185,7 @@ class AdminClient(AccountClient):
 
             # all pages
             pages = range(2, response["count"] + 1, 25)
-            coros = [
-                self.request(session=session, method=METHOD, url=URL, page=page) for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [user for response in responses for user in response[ITEM]]
 
@@ -224,9 +219,7 @@ class AdminClient(AccountClient):
         return results
 
     # List Bases Shared to User
-    async def list_bases_shared_to_user(
-        self, contact_email: str, per_page: int = 25, model: BaseModel = Base
-    ):
+    async def list_bases_shared_to_user(self, contact_email: str, per_page: int = 25, model: BaseModel = Base):
         # correct args
         contact_email = await self.encode_user(contact_email=contact_email)
 
@@ -243,10 +236,7 @@ class AdminClient(AccountClient):
 
             # all pages
             pages = range(2, response["count"] + 1, per_page)
-            coros = [
-                self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS)
-                for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [user for response in responses for user in response[ITEM]]
 
@@ -256,9 +246,7 @@ class AdminClient(AccountClient):
         return results
 
     # (CUSTOM) get base
-    async def get_base(
-        self, group_name_or_id: Union[str, int], base_name_or_id: Union[str, int]
-    ) -> Base:
+    async def get_base(self, group_name_or_id: Union[str, int], base_name_or_id: Union[str, int]) -> Base:
         bases = await self.list_group_bases(name_or_id=group_name_or_id)
         for base in bases:
             if base.id == base_name_or_id or base.name == base_name_or_id:
@@ -302,10 +290,7 @@ class AdminClient(AccountClient):
 
             # all pages
             pages = range(2, response["count"] + 1, per_page)
-            coros = [
-                self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS)
-                for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **PARAMS) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [user for response in responses for user in response[ITEM]]
 
@@ -390,9 +375,7 @@ class AdminClient(AccountClient):
 
     # Transfer Group
     # [NOTE] new_group_name으로 안 바뀌어서 Forum에 문의 중
-    async def transfer_group(
-        self, name_or_id: Union[str, int], owner: str = None, name: str = None
-    ):
+    async def transfer_group(self, name_or_id: Union[str, int], owner: str = None, name: str = None):
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
             name_or_id = group.id
@@ -462,11 +445,7 @@ class AdminClient(AccountClient):
         URL = "/api/v2.1/groups/move-group/"
         DATA = aiohttp.FormData()
         _ = DATA.add_field("group_id", name_or_id)
-        _ = (
-            DATA.add_field("anchor_group_id", anchor_group_name_or_id)
-            if anchor_group_name_or_id
-            else None
-        )
+        _ = DATA.add_field("anchor_group_id", anchor_group_name_or_id) if anchor_group_name_or_id else None
         _ = DATA.add_field("to_last", to_last)
 
         async with self.session_maker(token=self.account_token) as session:
@@ -505,9 +484,7 @@ class AdminClient(AccountClient):
             group = await self.get_group(name_or_id=name_or_id)
             name_or_id = group.id
         user_emails = user_emails if isinstance(user_emails, list) else [user_emails]
-        user_emails = await asyncio.gather(
-            *[self.encode_user(contact_email=user_email) for user_email in user_emails]
-        )
+        user_emails = await asyncio.gather(*[self.encode_user(contact_email=user_email) for user_email in user_emails])
 
         METHOD = "POST"
         URL = f"/api/v2.1/admin/groups/{name_or_id}/members/"
@@ -555,17 +532,13 @@ class AdminClient(AccountClient):
 
         async with self.session_maker(token=self.account_token) as session:
             page = 1
-            response = await self.request(
-                session=session, method=METHOD, url=URL, page=page, per_page=per_page
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, page=page, per_page=per_page)
             results = response[ITEM]
 
             # all pages
             while response["has_next_page"]:
                 page = page + 1
-                response = await self.request(
-                    session=session, method="GET", url=URL, page=page, per_page=per_page
-                )
+                response = await self.request(session=session, method="GET", url=URL, page=page, per_page=per_page)
                 results += [response[ITEM]]
 
         if model:
@@ -597,17 +570,13 @@ class AdminClient(AccountClient):
 
         async with self.session_maker(token=self.account_token) as session:
             page = 1
-            response = await self.request(
-                session=session, method=METHOD, url=URL, page=page, per_page=per_page
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, page=page, per_page=per_page)
             results = response[ITEM]
 
             # all pages
             while response["has_next_page"]:
                 page = page + 1
-                response = await self.request(
-                    session=session, method="GET", url=URL, page=page, per_page=per_page
-                )
+                response = await self.request(session=session, method="GET", url=URL, page=page, per_page=per_page)
                 results += [response[ITEM]]
 
         if model:
@@ -635,9 +604,7 @@ class AdminClient(AccountClient):
         base_model: BaseModel = BaseExternalLink,
         view_model: BaseModel = ViewExternalLink,
     ):
-        base = await self.get_base(
-            group_name_or_id=group_name_or_id, base_name_or_id=base_name_or_id
-        )
+        base = await self.get_base(group_name_or_id=group_name_or_id, base_name_or_id=base_name_or_id)
 
         METHOD = "GET"
         URL = f"/api/v2.1/admin/dtable/{base.id}/external-links/"
@@ -648,13 +615,9 @@ class AdminClient(AccountClient):
             results = response[ITEM]
 
         if base_model:
-            results["base_external_links"] = [
-                base_model(**x) for x in results["base_external_links"]
-            ]
+            results["base_external_links"] = [base_model(**x) for x in results["base_external_links"]]
         if view_model:
-            results["view_external_links"] = [
-                view_model(**x) for x in results["view_external_links"]
-            ]
+            results["view_external_links"] = [view_model(**x) for x in results["view_external_links"]]
 
         return results
 
@@ -667,17 +630,13 @@ class AdminClient(AccountClient):
 
         async with self.session_maker(token=self.account_token) as session:
             page = 1
-            response = await self.request(
-                session=session, method=METHOD, url=URL, page=page, per_page=per_page
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, page=page, per_page=per_page)
             results = response[ITEM]
 
             # all pages
             while response["has_next_page"]:
                 page = page + 1
-                response = await self.request(
-                    session=session, method="GET", url=URL, page=page, per_page=per_page
-                )
+                response = await self.request(session=session, method="GET", url=URL, page=page, per_page=per_page)
                 results += [response[ITEM]]
 
         if model:
@@ -697,9 +656,7 @@ class AdminClient(AccountClient):
     # DEPARTMENTS (Admin)
     ################################################################
     # List Department
-    async def list_departments(
-        self, parent_department_id: int = -1, model: BaseModel = None, **params
-    ):
+    async def list_departments(self, parent_department_id: int = -1, model: BaseModel = None, **params):
         METHOD = "GET"
         URL = f"/api/v2.1/admin/address-book/groups/{parent_department_id}/"
         ITEM = "group_list"
@@ -713,10 +670,7 @@ class AdminClient(AccountClient):
 
             # all pages
             pages = range(2, response["total_count"] + 1, 25)
-            coros = [
-                self.request(session=session, method=METHOD, url=URL, page=page, **params)
-                for page in pages
-            ]
+            coros = [self.request(session=session, method=METHOD, url=URL, page=page, **params) for page in pages]
             responses = await asyncio.gather(*coros)
             results += [x for response in responses for x in response[ITEM]]
 
@@ -780,21 +734,15 @@ class AdminClient(AccountClient):
 
     async def delete_api_token(self, group_name_or_id: str, base_name: str, app_name: str):
         workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
-        return await super().delete_api_token(
-            workspace_id=workspace_id, base_name=base_name, app_name=app_name
-        )
+        return await super().delete_api_token(workspace_id=workspace_id, base_name=base_name, app_name=app_name)
 
     async def create_temp_api_token(self, group_name_or_id: str, base_name: str):
         workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
         return await super().create_temp_api_token(workspace_id=workspace_id, base_name=base_name)
 
-    async def get_base_token_with_account_token(
-        self, group_name_or_id: Union[str, int], base_name: str
-    ):
+    async def get_base_token_with_account_token(self, group_name_or_id: Union[str, int], base_name: str):
         workspace_id = await self.infer_workspace_id(group_name_or_id=group_name_or_id)
-        base_token = await super().get_base_token_with_account_token(
-            workspace_id=workspace_id, base_name=base_name
-        )
+        base_token = await super().get_base_token_with_account_token(workspace_id=workspace_id, base_name=base_name)
 
         # add info
         group, base = await asyncio.gather(
@@ -812,9 +760,7 @@ class AdminClient(AccountClient):
         return base_token
 
     # (CUSTOM)
-    async def get_base_client_with_account_token(
-        self, group_name_or_id: Union[str, int], base_name: str
-    ):
+    async def get_base_client_with_account_token(self, group_name_or_id: Union[str, int], base_name: str):
         base_token = await self.get_base_token_with_account_token(
             group_name_or_id=group_name_or_id, base_name=base_name
         )

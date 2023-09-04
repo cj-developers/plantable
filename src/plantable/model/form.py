@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from .core import ColumnType, _Model
 
-__all__ = ["NewColumn"]
+__all__ = ["NewColumn", "SelectOption"]
 
 
 class NumberFormat(Enum):
@@ -82,3 +82,10 @@ class NewColumn(_Model):
     column_type: ColumnType = Field(..., alias="type")
     column_data: ColumnData = Field(None, alias="data")
     anchor_column: str = None
+
+
+# SelectOption
+class SelectOption(_Model):
+    name: str
+    color: str = "gray"
+    textColor: str = "white"

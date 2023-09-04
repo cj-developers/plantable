@@ -43,6 +43,15 @@ logger = logging.getLogger()
 
 
 ################################################################
+# Helpers
+################################################################
+# divide chunks
+def divide_chunks(x: list, chunk_size: int):
+    for i in range(0, len(x), chunk_size):
+        yield x[i : i + chunk_size]
+
+
+################################################################
 # BaseClient
 ################################################################
 class BaseClient(HttpClient):
@@ -376,10 +385,15 @@ class BaseClient(HttpClient):
         # updates = [{"row_id": xxx, "row": {"key": "value"}}, ...]
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-update-rows/"
-        JSON = {"table_name": table_name, "updates": updates}
+
+        # divide chunk
+        UPDATE_LIMIT = 1000
+        chunks = divide_chunks(updates, UPDATE_LIMIT)
+        list_json = [{"table_name": table_name, "updates": chunk} for chunk in chunks]
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            coros = [self.request(session=session, method=METHOD, url=URL, json=json) for json in list_json]
+            results = await asyncio.gather(*coros)
 
         return results
 
@@ -503,7 +517,9 @@ class BaseClient(HttpClient):
             try:
                 rows = [deserializer(r) for r in rows]
             except Exception as ex:
-                _msg = f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}'"
+                _msg = (
+                    f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}'"
+                )
                 logger.error(_msg)
                 raise ex
 
@@ -602,11 +618,7 @@ class BaseClient(HttpClient):
     # (CUSTOM) Generate Deserializer
     async def generate_deserializer(self, table_name):
         table = await self.get_table(table_name)
-        users = (
-            await self.list_collaborators()
-            if "collaborator" in [c.type for c in table.columns]
-            else None
-        )
+        users = await self.list_collaborators() if "collaborator" in [c.type for c in table.columns] else None
         return ToPythonDict(table=table, users=users)
 
     ################################################################
@@ -685,9 +697,7 @@ class BaseClient(HttpClient):
         ITEM = "views"
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, table_name=table_name
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, table_name=table_name)
             results = response[ITEM]
 
         if model:
@@ -735,9 +745,7 @@ class BaseClient(HttpClient):
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/views/{view_name}/"
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(
-                session=session, method=METHOD, url=URL, table_name=table_name
-            )
+            results = await self.request(session=session, method=METHOD, url=URL, table_name=table_name)
 
         if model:
             results = model(**results)
@@ -752,9 +760,7 @@ class BaseClient(HttpClient):
 
     # Update View
     # NOT TESTED!
-    async def update_view(
-        self, table_name: str, view_name: str, conf: Union[dict, BaseModel] = None
-    ):
+    async def update_view(self, table_name: str, view_name: str, conf: Union[dict, BaseModel] = None):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/views/{view_name}/"
 
@@ -779,9 +785,7 @@ class BaseClient(HttpClient):
         ITEM = "success"
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            response = await self.request(
-                session=session, method=METHOD, url=URL, table_name=table_name
-            )
+            response = await self.request(session=session, method=METHOD, url=URL, table_name=table_name)
             results = response[ITEM]
 
         return results
@@ -816,9 +820,7 @@ class BaseClient(HttpClient):
     # ACTIVITIES & LOGS
     ################################################################
     # Get Base Activity Logs
-    async def get_base_activity_log(
-        self, page: int = 1, per_page: int = 25, model: BaseModel = BaseActivity
-    ):
+    async def get_base_activity_log(self, page: int = 1, per_page: int = 25, model: BaseModel = BaseActivity):
         # rename table in a second step
         METHOD = "GET"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/operations/"

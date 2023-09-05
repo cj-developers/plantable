@@ -1,4 +1,4 @@
-from ..typing import (
+from ..column import (
     Text,
     LongText,
     Integer,

@@ -35,7 +35,7 @@ from ..model import (
     Webhook,
 )
 from ..serde import ToPythonDict
-from ..typing import SeaTableType
+from ..column import SeaTableType
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
 from .exception import MoreRows
@@ -221,7 +221,8 @@ class BaseClient(HttpClient):
         """
         METHOD = "POST"
         URL = f"/dtable-db/api/v1/query/{self.base_token.dtable_uuid}/"
-        JSON = {
+
+        json = {
             "sql": sql.get_sql() if isinstance(sql, QueryBuilder) else sql,
             "convert_keys": convert_keys,
         }
@@ -229,7 +230,7 @@ class BaseClient(HttpClient):
         ITEM = "results"
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            response = await self.request(session=session, method=METHOD, url=URL, json=json)
             if not response[SUCCESS]:
                 raise Exception(response)
             results = response[ITEM]
@@ -317,9 +318,10 @@ class BaseClient(HttpClient):
         # insert_below or insert_above
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
-        JSON = {"table_name": table_name, "row": row}
+
+        json = {"table_name": table_name, "row": row}
         if anchor_row_id:
-            JSON.update(
+            json.update(
                 {
                     "ahchor_row_id": anchor_row_id,
                     "row_insert_position": row_insert_position,
@@ -330,7 +332,7 @@ class BaseClient(HttpClient):
         _ = await self.add_select_options_if_not_exists(table_name=table_name, rows=[row])
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
 
@@ -339,14 +341,15 @@ class BaseClient(HttpClient):
         # NOT WORKING
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
-        JSON = {"table_name": table_name, "row_id": row_id, "row": row}
         ITEM = "success"
+
+        json = {"table_name": table_name, "row_id": row_id, "row": row}
 
         # add select options if not exists
         _ = await self.add_select_options_if_not_exists(table_name=table_name, rows=[row])
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            response = await self.request(session=session, method=METHOD, url=URL, json=json)
             results = response[ITEM]
 
         return results
@@ -355,10 +358,11 @@ class BaseClient(HttpClient):
     async def delete_row(self, table_name: str, row_id: str):
         METHOD = "DELETE"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
-        JSON = {"table_name": table_name, "row_id": row_id}
+
+        json = {"table_name": table_name, "row_id": row_id}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
 
@@ -461,10 +465,11 @@ class BaseClient(HttpClient):
     async def delete_rows(self, table_name: str, row_ids: List[str]):
         METHOD = "DELETE"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-delete-rows/"
-        JSON = {"table_name": table_name, "row_ids": row_ids}
+
+        json = {"table_name": table_name, "row_ids": row_ids}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
 
@@ -472,10 +477,11 @@ class BaseClient(HttpClient):
     async def lock_rows(self, table_name: str, row_ids: List[str]):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/lock-rows/"
-        JSON = {"table_name": table_name, "row_ids": row_ids}
+
+        json = {"table_name": table_name, "row_ids": row_ids}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
 
@@ -483,10 +489,11 @@ class BaseClient(HttpClient):
     async def unlock_rows(self, table_name: str, row_ids: List[str]):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/unlock-rows/"
-        JSON = {"table_name": table_name, "row_ids": row_ids}
+
+        json = {"table_name": table_name, "row_ids": row_ids}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
 
@@ -670,13 +677,14 @@ class BaseClient(HttpClient):
     async def create_new_table(self, table_name: str, columns: List[Union[dict, SeaTableType]]):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/tables/"
-        JSON = {
+
+        json = {
             "table_name": table_name,
             "columns": [c.seatable_schema() if isinstance(c, SeaTableType) else c for c in columns],
         }
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
 
@@ -684,10 +692,11 @@ class BaseClient(HttpClient):
     async def rename_table(self, table_name: str, new_table_name: str):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/tables/"
-        JSON = {"table_name": table_name, "new_table_name": new_table_name}
+
+        json = {"table_name": table_name, "new_table_name": new_table_name}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
 
@@ -695,10 +704,11 @@ class BaseClient(HttpClient):
     async def delete_table(self, table_name: str):
         METHOD = "DELETE"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/tables/"
-        JSON = {"table_name": table_name}
+
+        json = {"table_name": table_name}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
 
@@ -707,10 +717,11 @@ class BaseClient(HttpClient):
         # rename table in a second step
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/tables/duplicate-table/"
-        JSON = {"table_name": table_name, "is_duplicate_records": is_duplicate_records}
+
+        json = {"table_name": table_name, "is_duplicate_records": is_duplicate_records}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
 
@@ -753,7 +764,8 @@ class BaseClient(HttpClient):
         """
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/views/"
-        JSON = {
+
+        json = {
             "name": name,
             "type": type,
             "is_locked": str(is_locked).lower(),
@@ -764,7 +776,7 @@ class BaseClient(HttpClient):
                 session=session,
                 method=METHOD,
                 url=URL,
-                json=JSON,
+                json=json,
                 table_name=table_name,
             )
 
@@ -832,14 +844,15 @@ class BaseClient(HttpClient):
     ):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/column-options/"
-        JSON = {
+
+        json = {
             "table_name": table_name,
             "column": column_name,
             "options": [opt.dict(exclude_none=True) for opt in options],
         }
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=JSON)
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         if model:
             results = model(**results)
@@ -885,10 +898,11 @@ class BaseClient(HttpClient):
         # NOT WORKING
         METHOD = "GET"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/comments/"
-        PARAMS = {"row_id": row_id}
+
+        params = {"row_id": row_id}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+            results = await self.request(session=session, method=METHOD, url=URL, **params)
 
         return results
 
@@ -904,11 +918,12 @@ class BaseClient(HttpClient):
         # rename table in a second step
         METHOD = "GET"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/operations/"
-        PARAMS = {"page": page, "per_page": per_page}
         ITEM = "operations"
 
+        params = {"page": page, "per_page": per_page}
+
         async with self.session_maker(token=self.base_token.access_token) as session:
-            response = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+            response = await self.request(session=session, method=METHOD, url=URL, **params)
             results = response[ITEM]
 
         if model:
@@ -921,10 +936,11 @@ class BaseClient(HttpClient):
         # rename table in a second step
         METHOD = "GET"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/activities/"
-        PARAMS = {"row_id": row_id, "page": page, "per_page": per_page}
+
+        params = {"row_id": row_id, "page": page, "per_page": per_page}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+            results = await self.request(session=session, method=METHOD, url=URL, **params)
 
         return results
 
@@ -940,10 +956,11 @@ class BaseClient(HttpClient):
         # rename table in a second step
         METHOD = "GET"
         URL = f"/api/v2.1/dtables/{self.base_token.dtable_uuid}/delete-operation-logs/"
-        PARAMS = {"op_type": op_type, "page": page, "per_page": per_page}
+
+        params = {"op_type": op_type, "page": page, "per_page": per_page}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **PARAMS)
+            results = await self.request(session=session, method=METHOD, url=URL, **params)
 
         return results
 

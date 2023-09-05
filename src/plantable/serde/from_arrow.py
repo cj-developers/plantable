@@ -1,7 +1,7 @@
 import parse
 import pyarrow as pa
 
-from ..typing import (
+from ..column import (
     AutoNumber,
     Button,
     Checkbox,
@@ -81,9 +81,7 @@ class FromArrowTable:
 
         # seatable schema
         self.columns = [
-            SCHEMA_MAP[opt["dtype"]](name=name)
-            for name, opt in self.opts.items()
-            if name not in SYSTEM_FIELDS
+            SCHEMA_MAP[opt["dtype"]](name=name) for name, opt in self.opts.items() if name not in SYSTEM_FIELDS
         ]
 
     @staticmethod
@@ -94,9 +92,7 @@ class FromArrowTable:
                 return r.named
 
     def get_rows_for_append(self):
-        return [
-            {k: v for k, v in r.items() if k not in SYSTEM_FIELDS} for r in self.tbl.to_pylist()
-        ]
+        return [{k: v for k, v in r.items() if k not in SYSTEM_FIELDS} for r in self.tbl.to_pylist()]
 
     def get_rows_for_update(self, row_id_field: str = "_id"):
         updates = list()

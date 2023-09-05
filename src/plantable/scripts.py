@@ -2,7 +2,6 @@ import logging
 
 import click
 import uvicorn
-import uvloop
 from click_loglevel import LogLevel
 
 logger = logging.getLogger(__file__)
@@ -76,8 +75,6 @@ def run_producer(seatable_url, seatable_username, seatable_password, redis_host,
         except asyncio.CancelledError:
             return
 
-    loop = uvloop.new_event_loop()
-    asyncio.set_event_loop(loop)
     asyncio.run(main())
 
 

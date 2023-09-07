@@ -86,6 +86,6 @@ class NewColumn(_Model):
 
 # SelectOption
 class SelectOption(_Model):
-    name: str
+    name: str = None
     color: str = "gray"
     textColor: str = "white"

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, date
 from typing import Callable, List, Union
 
 import pandas as pd
@@ -307,6 +307,12 @@ class BaseClient(HttpClient):
             limit=limit,
         )
 
+    # deserialize
+    @staticmethod
+    def serialize_row(row):
+        OBJECT_TYPES = (date, datetime)
+        return {k: str(v) if isinstance(v, OBJECT_TYPES) else v for k, v in row.items()}
+
     # Add Row
     async def add_row(
         self,
@@ -319,7 +325,7 @@ class BaseClient(HttpClient):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
 
-        json = {"table_name": table_name, "row": row}
+        json = {"table_name": table_name, "row": self.serialize_row(row)}
         if anchor_row_id:
             json.update(
                 {
@@ -343,7 +349,7 @@ class BaseClient(HttpClient):
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
         ITEM = "success"
 
-        json = {"table_name": table_name, "row_id": row_id, "row": row}
+        json = {"table_name": table_name, "row_id": row_id, "row": self.serialize_row(row)}
 
         # add select options if not exists
         _ = await self.add_select_options_if_not_exists(table_name=table_name, rows=[row])
@@ -391,7 +397,7 @@ class BaseClient(HttpClient):
         # divide chunk - [NOTE] 1000 rows까지만 됨
         UPDATE_LIMIT = 1000
         chunks = divide_chunks(rows, UPDATE_LIMIT)
-        list_json = [{"table_name": table_name, "rows": chunk} for chunk in chunks]
+        list_json = [{"table_name": table_name, "rows": [self.serialize_row(r) for r in chunk]} for chunk in chunks]
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             coros = [self.request(session=session, method=METHOD, url=URL, json=json) for json in list_json]
@@ -417,7 +423,13 @@ class BaseClient(HttpClient):
         # divide chunk - [NOTE] 1000 rows까지만 됨
         UPDATE_LIMIT = 1000
         chunks = divide_chunks(updates, UPDATE_LIMIT)
-        list_json = [{"table_name": table_name, "updates": chunk} for chunk in chunks]
+        list_json = [
+            {
+                "table_name": table_name,
+                "updates": [{"row_id": r["row_id"], "row": self.serialize_row(r["row"])} for r in chunk],
+            }
+            for chunk in chunks
+        ]
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             coros = [self.request(session=session, method=METHOD, url=URL, json=json) for json in list_json]
@@ -447,7 +459,7 @@ class BaseClient(HttpClient):
         rows_to_append = list()
         for row in rows:
             if row[key_column] in row_id_map:
-                rows_to_update.append({"row_id": row_id_map[row[key_column]], "row": row})
+                rows_to_update.append({"row_id": row_id_map[row[key_column]], "row": self.serialize_row(row)})
             else:
                 rows_to_append.append(row)
 
@@ -863,7 +875,7 @@ class BaseClient(HttpClient):
     async def add_select_options_if_not_exists(self, table_name: str, rows: List[dict]):
         table = await self.get_table(table_name=table_name)
         columns_and_options = {
-            c.name: [o["name"] for o in c.data["options"]]
+            c.name: [o["name"] for o in c.data["options"]] if c.data else []
             for c in table.columns
             if c.type in ["single-select", "multiple-select"]
         }

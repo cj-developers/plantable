@@ -111,7 +111,7 @@ class ColumnType(Enum):
 class Column(_Model):
     key: str  # '0000'
     type: str  # 'text' # ColumnType
-    name: str  # 'Hive DB'
+    name: str = None  # 'Hive DB'
     width: int  # 199
     editable: bool  # True
     resizable: bool  # True

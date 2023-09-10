@@ -1,7 +1,7 @@
 import parse
 import pyarrow as pa
 
-from ..column import (
+from .column import (
     AutoNumber,
     Button,
     Checkbox,

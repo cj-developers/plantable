@@ -15,7 +15,7 @@ from pypika import MySQLQuery as PikaQuery
 from pypika import Table as PikaTable
 from pypika.dialects import QueryBuilder
 from tabulate import tabulate
-
+from ..serde.to_seatable import ToSeaTable
 from ..model import (
     DTABLE_ICON_COLORS,
     DTABLE_ICON_LIST,
@@ -35,12 +35,14 @@ from ..model import (
     Webhook,
 )
 from ..serde import ToPythonDict
-from ..column import SeaTableType
+from ..serde.column import SeaTableType
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
 from .exception import MoreRows
 
 logger = logging.getLogger()
+
+FIRST_COLUMN_TYPES = ["text", "number", "date", "single-select", "formular", "autonumber"]
 
 
 ################################################################
@@ -307,12 +309,6 @@ class BaseClient(HttpClient):
             limit=limit,
         )
 
-    # deserialize
-    @staticmethod
-    def serialize_row(row):
-        OBJECT_TYPES = (date, datetime)
-        return {k: str(v) if isinstance(v, OBJECT_TYPES) else v for k, v in row.items()}
-
     # Add Row
     async def add_row(
         self,
@@ -325,7 +321,10 @@ class BaseClient(HttpClient):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
 
-        json = {"table_name": table_name, "row": self.serialize_row(row)}
+        table = await self.get_table(table_name=table_name)
+        serializer = ToSeaTable(table)
+
+        json = {"table_name": table_name, "row": serializer(row)}
         if anchor_row_id:
             json.update(
                 {
@@ -349,7 +348,9 @@ class BaseClient(HttpClient):
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
         ITEM = "success"
 
-        json = {"table_name": table_name, "row_id": row_id, "row": self.serialize_row(row)}
+        table = await self.get_table(table_name=table_name)
+        serializer = ToSeaTable(table=table)
+        json = {"table_name": table_name, "row_id": row_id, "row": serializer(row)}
 
         # add select options if not exists
         _ = await self.add_select_options_if_not_exists(table_name=table_name, rows=[row])
@@ -391,13 +392,17 @@ class BaseClient(HttpClient):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-append-rows/"
 
+        # get pk and serializer
+        table = await self.get_table(table_name=table_name)
+        serializer = ToSeaTable(table=table)
+
         # add select options if not exists
         _ = await self.add_select_options_if_not_exists(table_name=table_name, rows=rows)
 
         # divide chunk - [NOTE] 1000 rows까지만 됨
         UPDATE_LIMIT = 1000
         chunks = divide_chunks(rows, UPDATE_LIMIT)
-        list_json = [{"table_name": table_name, "rows": [self.serialize_row(r) for r in chunk]} for chunk in chunks]
+        list_json = [{"table_name": table_name, "rows": [serializer(r) for r in chunk]} for chunk in chunks]
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             coros = [self.request(session=session, method=METHOD, url=URL, json=json) for json in list_json]
@@ -415,6 +420,10 @@ class BaseClient(HttpClient):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-update-rows/"
 
+        # get serializer
+        table = await self.get_table(table_name=table_name)
+        serializer = ToSeaTable(table=table)
+
         # add select options if not exists
         _ = await self.add_select_options_if_not_exists(
             table_name=table_name, rows=[update["row"] for update in updates]
@@ -426,7 +435,7 @@ class BaseClient(HttpClient):
         list_json = [
             {
                 "table_name": table_name,
-                "updates": [{"row_id": r["row_id"], "row": self.serialize_row(r["row"])} for r in chunk],
+                "updates": [{"row_id": r["row_id"], "row": serializer(r["row"])} for r in chunk],
             }
             for chunk in chunks
         ]
@@ -453,13 +462,13 @@ class BaseClient(HttpClient):
             table = await self.get_table(table_name=table_name)
             key_column = table.columns[0].name
 
-        row_id_map = await self.generate_row_id_map(table_name=table_name, key_column=key_column)
+        row_id_map = await self.get_row_id_map(table_name=table_name, key_column=key_column)
 
         rows_to_update = list()
         rows_to_append = list()
         for row in rows:
             if row[key_column] in row_id_map:
-                rows_to_update.append({"row_id": row_id_map[row[key_column]], "row": self.serialize_row(row)})
+                rows_to_update.append({"row_id": row_id_map[row[key_column]], "row": row})
             else:
                 rows_to_append.append(row)
 
@@ -513,7 +522,7 @@ class BaseClient(HttpClient):
     # (CUSTOM) QUERY
     ################################################################
     # (CUSTOM) Query Key Map
-    async def generate_row_id_map(self, table_name: str, key_column: str):
+    async def get_row_id_map(self, table_name: str, key_column: str):
         results = await self.read_table(table_name=table_name, columns=["_id", key_column])
         return {r[key_column]: r["_id"] for r in results}
 
@@ -677,6 +686,114 @@ class BaseClient(HttpClient):
     ################################################################
     # LINKS
     ################################################################
+    # Create Row Link
+    # [NOTE] Not Working!
+    async def create_row_link(
+        self, table_name: str, table_row_id: str, other_table_name: str, other_table_row_id: str, link_id: str
+    ):
+        METHOD = "POST"
+        URL = f"/dtable-db/api/v1/linked-records/{self.base_token.dtable_uuid}"
+
+        json = {
+            "table_id": table_name,
+            "other_table_name": other_table_name,
+            "link_id": link_id,
+            "table_row_id": table_row_id,
+            "other_table_row_id": other_table_row_id,
+        }
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # Create Row Links (1:n)
+    async def create_row_links(
+        self, table_name: str, other_table_name: str, link_id: str, row_id: str, other_rows_ids: List[str]
+    ):
+        METHOD = "PUT"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/links/"
+
+        other_rows_ids = other_rows_ids if isinstance(other_rows_ids, list) else [other_rows_ids]
+
+        json = {
+            "table_name": table_name,
+            "other_table_name": other_table_name,
+            "link_id": link_id,
+            "row_id": row_id,
+            "other_rows_ids": other_rows_ids,
+        }
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # Create Row Links Batch (m:n)
+    # [TBD]
+    async def create_row_links_batch(
+        self,
+        table_name: str,
+        other_table_name: str,
+        link_id: str,
+        row_id_list: List[str],
+        other_rows_ids_map: List[str],
+    ):
+        METHOD = "PUT"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-update-links/"
+
+        table, other_table = await asyncio.gather(
+            self.get_table(table_name=table_name), self.get_table(other_table_name=other_table_name)
+        )
+
+        json = {
+            "table_id": table.id,
+            "other_table_id": other_table.id,
+            "link_id": link_id,
+            "row_id_list": row_id_list,
+            "other_rows_ids_map": other_rows_ids_map,
+        }
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # List Row Links
+    # [NOTE] Not Working!
+    async def list_row_links(self, table_name: str, link_column: str, rows: list = None):
+        METHOD = "POST"
+        URL = f"/dtable-db/api/v1/linked-records/{self.base_token.dtable_uuid}"
+
+        table = await self.get_table(table_name=table_name)
+
+        json = {"table_id": table.id, "link_column": link_column, "rows": rows}
+
+        print(json)
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # (custom) Get Link
+    async def get_link(self, table_name: str, column_name: str):
+        column = await self.get_column(table_name=table_name, column_name=column_name)
+        if column.type != "link":
+            _msg = f"type of column '{column_name}' is not link type."
+            raise KeyError(_msg)
+        return column.data
+
+    # (custom) Get Ohter Rows Ids
+    async def get_other_rows_ids(self, table_name, column_name):
+        link = await self.get_link(table_name=table_name, column_name=column_name)
+        other_table = await self.get_table_by_id(table_id=link["other_table_id"])
+        for column in other_table.columns:
+            if column.key == link["display_column_key"]:
+                break
+        else:
+            raise KeyError
+        return await self.get_row_id_map(table_name=other_table.name, key_column=column.name)
 
     ################################################################
     # FILES & IMAGES
@@ -685,20 +802,63 @@ class BaseClient(HttpClient):
     ################################################################
     # TABLES
     ################################################################
+    # Add Table
+    async def add_table(self, table_name: str):
+        METHOD = "POST"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/tables/"
+
+        json = {"table_name": table_name}
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
     # Create New Table
+    # [NOTE] 이 endpoint는 Link 컬럼을 처리하지 못 함. (2023.9.9 현재)
     async def create_new_table(self, table_name: str, columns: List[Union[dict, SeaTableType]]):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/tables/"
 
         json = {
             "table_name": table_name,
-            "columns": [c.seatable_schema() if isinstance(c, SeaTableType) else c for c in columns],
+            "columns": [c.seatable_schema() if isinstance(c, SeaTableType) else c for c in columns]
+            if columns
+            else None,
         }
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
+
+    # (custom) Create Table
+    # [NOTE] 현재 Create New Table API 문제 때문에 사용 - 2번째 Colmnn부터는 insert_column으로 추가.
+    async def create_table(self, table_name: str, columns: List[Union[dict, SeaTableType]], exist_ok: bool = True):
+        # check if already exists
+        tables = await self.list_tables()
+        if table_name in tables:
+            if not exist_ok:
+                _msg = f"table '{table_name}' already exists!"
+                raise KeyError(_msg)
+            return
+
+        # parse column type
+        columns = [c.seatable_schema() if isinstance(c, SeaTableType) else c for c in columns]
+
+        # seprate key column
+        key_column, columns = columns[0], columns[1:]
+        if key_column["column_type"] not in FIRST_COLUMN_TYPES:
+            _msg = f"""only '{", ".join(FIRST_COLUMN_TYPES)}' can be a first column"""
+            raise KeyError(_msg)
+
+        # create table
+        _ = await self.create_new_table(table_name=table_name, columns=[key_column])
+
+        # insert columns
+        for column in columns:
+            _ = await self.insert_column(table_name=table_name, column=column)
+        return
 
     # Rename Table
     async def rename_table(self, table_name: str, new_table_name: str):
@@ -851,6 +1011,58 @@ class BaseClient(HttpClient):
     ################################################################
     # COLUMNS
     ################################################################
+    # Insert Column
+    async def insert_column(self, table_name: str, column: Union[dict, SeaTableType]):
+        METHOD = "POST"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/columns/"
+
+        column = column.seatable_schema() if isinstance(column, SeaTableType) else column
+        json = {"table_name": table_name, **column}
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # Append Columns
+    # [NOTE] 이 endpoint는 Link 컬럼을 처리하지 못 함. (2023.9.9 현재)
+    async def append_columns(self, table_name: str, columns: List[Union[dict, SeaTableType]]):
+        METHOD = "POST"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-append-columns/"
+
+        json = {
+            "table_name": table_name,
+            "columns": [c.seatable_schema() if isinstance(c, SeaTableType) else c for c in columns]
+            if columns
+            else None,
+        }
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # (custom) Get Column
+    async def get_column(self, table_name: str, column_name: str):
+        table = await self.get_table(table_name=table_name)
+        for column in table.columns:
+            if column.name == column_name:
+                return column
+        else:
+            _msg = f"no column (name: {column_name}) in table (name: {table_name})."
+            raise KeyError(_msg)
+
+    # (custom) Get Column by ID
+    async def get_column_by_id(self, table_id: str, column_id: str):
+        table = await self.get_table_by_id(table_id=table_id)
+        for column in table.columns:
+            if column.key == column_id:
+                return column
+        else:
+            _msg = f"no column (id: {column_id}) in table (id: {table_id})."
+            raise KeyError(_msg)
+
+    # Add Select Options
     async def add_select_options(
         self, table_name: str, column_name: str, options: List[SelectOption], model: BaseModel = None
     ):
@@ -883,7 +1095,7 @@ class BaseClient(HttpClient):
         if not columns_and_options:
             return
 
-        options = {c: set([r.get(c) for r in rows]) for c in columns_and_options}
+        options = {c: set([r.get(c) for r in rows if r.get(c)]) for c in columns_and_options}
         options_to_add = dict()
         for column_name, column_options in options.items():
             for column_opt in column_options:

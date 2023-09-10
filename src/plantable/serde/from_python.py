@@ -1,4 +1,4 @@
-from ..column import (
+from .column import (
     Text,
     LongText,
     Integer,

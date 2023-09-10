@@ -386,6 +386,11 @@ class BaseClient(HttpClient):
 
         return results
 
+    # prep link columns
+    @staticmethod
+    def prep_link_columns(table: Table):
+        return [c for c in table.columns if c.type == "link"]
+
     # Append Rows
     async def append_rows(self, table_name: str, rows: List[dict]):
         # insert_below or insert_above
@@ -395,6 +400,9 @@ class BaseClient(HttpClient):
         # get pk and serializer
         table = await self.get_table(table_name=table_name)
         serializer = ToSeaTable(table=table)
+
+        # prep link columns
+        link_columns = self.prep_link_columns(table=table)
 
         # add select options if not exists
         _ = await self.add_select_options_if_not_exists(table_name=table_name, rows=rows)
@@ -412,6 +420,10 @@ class BaseClient(HttpClient):
         for r in list_results:
             results["inserted_row_count"] += r["inserted_row_count"]
 
+        # update link
+        if link_columns:
+            pass
+
         return results
 
     # Update Rows
@@ -423,6 +435,9 @@ class BaseClient(HttpClient):
         # get serializer
         table = await self.get_table(table_name=table_name)
         serializer = ToSeaTable(table=table)
+
+        # prep link columns
+        link_columns = self.prep_link_columns(table=table)
 
         # add select options if not exists
         _ = await self.add_select_options_if_not_exists(
@@ -522,7 +537,10 @@ class BaseClient(HttpClient):
     # (CUSTOM) QUERY
     ################################################################
     # (CUSTOM) Query Key Map
-    async def get_row_id_map(self, table_name: str, key_column: str):
+    async def get_row_id_map(self, table_name: str, key_column: str = None):
+        if key_column is None:
+            table = await self.get_table(table_name=table_name)
+            key_column = table.columns[0].name
         results = await self.read_table(table_name=table_name, columns=["_id", key_column])
         return {r[key_column]: r["_id"] for r in results}
 
@@ -794,6 +812,12 @@ class BaseClient(HttpClient):
         else:
             raise KeyError
         return await self.get_row_id_map(table_name=other_table.name, key_column=column.name)
+
+    # (custom)
+    async def upsert_link_rows(self, table: Table, column_name: str, rows: List[dict], key_column: str = None):
+        map_pk_to_row_id = await self.get_row_id_map(table.name, key_column=key_column)
+        pass
+        # [HERE!!!]
 
     ################################################################
     # FILES & IMAGES

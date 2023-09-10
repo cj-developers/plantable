@@ -13,20 +13,26 @@ logger = logging.getLogger(__name__)
 # Converter
 ################################################################
 class ToSeaTable:
-    def __init__(self, table: Table):
+    def __init__(self, table: Table, overwrite_none: bool = False):
         self.table_name = table.name
+        self.overwrite_none = overwrite_none
+
         self.schema = {column.name: column for column in table.columns}
 
     def __call__(self, row):
         if row is None:
             return
-        return {
+        row = {
             column: getattr(self, self.schema[column].type.replace("-", "_"))(
                 value=value, data=self.schema[column].data
             )
             for column, value in row.items()
             if column in self.schema
         }
+        row = {k: v for k, v in row.items() if v != "__ignore__"}
+        if not self.overwrite_none:
+            row = {k: v for k, v in row.items() if v}
+        return row
 
     @staticmethod
     def _ensure_list(x):
@@ -82,7 +88,8 @@ class ToSeaTable:
         return self._ensure_list(value)
 
     def link(self, value: list, data: dict = None) -> list:
-        return self._ensure_list(value)
+        # [NOTE] Link 값은 create link로 따로 입력해야 함.
+        return "__ignore__"
 
     def link_formula(self, value, data: dict = None):
         raise KeyError("you cannot insert the value for link-formula column")

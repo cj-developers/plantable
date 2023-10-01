@@ -109,7 +109,7 @@ class BaseWebsocketClient(socketio.AsyncClient):
             raise ex
 
     async def on_connect(self):
-        if not self.base_token or datetime.now() >= self.base_token.generated_at + timedelta(days=3):
+        if not self.base_token or datetime.now() >= self.base_token.generated_at + timedelta(days=1):
             self.update_base_token()
         await self.emit(JOIN_ROOM, (self.base_token.dtable_uuid, self.base_token.access_token))
         _msg = f"[ SeaTable SocketIO connection established ] {self.key['group_name']}/{self.key['base_name']}"

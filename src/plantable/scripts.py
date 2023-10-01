@@ -4,6 +4,8 @@ import click
 import uvicorn
 from click_loglevel import LogLevel
 
+from .agent import conf as AGENT_CONF
+
 logger = logging.getLogger(__file__)
 
 
@@ -23,11 +25,11 @@ def agent():
 
 
 @agent.command()
-@click.option("--seatable-url", default=None)
-@click.option("--seatable-username", default=None)
-@click.option("--seatable-password", default=None)
-@click.option("--redis-host", default="localhost")
-@click.option("--redis-port", default=6379)
+@click.option("--seatable-url", default=AGENT_CONF.SEATABLE_URL, required=True)
+@click.option("--seatable-username", default=AGENT_CONF.SEATABLE_USERNAME, required=True)
+@click.option("--seatable-password", default=AGENT_CONF.SEATABLE_PASSWORD, required=True)
+@click.option("--redis-host", default=AGENT_CONF.REDIS_HOST, required=True)
+@click.option("--redis-port", default=AGENT_CONF.REDIS_PORT, required=True)
 @click.option("--log-level", default=logging.WARNING, type=LogLevel())
 def run_producer(seatable_url, seatable_username, seatable_password, redis_host, redis_port, log_level):
     import asyncio
@@ -35,27 +37,15 @@ def run_producer(seatable_url, seatable_username, seatable_password, redis_host,
     from redis.exceptions import ConnectionError as RedisConnectionError
 
     from plantable.agent import Producer, RedisStreamAdder
-    from plantable.agent.conf import (
-        AWS_S3_ACCESS_KEY_ID,
-        AWS_S3_SECRET_ACCESS_KEY,
-        REDIS_HOST,
-        REDIS_PORT,
-        SEATABLE_PASSWORD,
-        SEATABLE_URL,
-        SEATABLE_USERNAME,
-    )
 
     logging.basicConfig(level=log_level)
 
-    REDIS_CONF = {
-        "host": redis_host or REDIS_HOST,
-        "port": redis_port or REDIS_PORT,
-    }
+    REDIS_CONF = {"host": redis_host, "port": redis_port}
 
     SEATABLE_CONF = {
-        "seatable_url": seatable_url or SEATABLE_URL,
-        "seatable_username": seatable_username or SEATABLE_USERNAME,
-        "seatable_password": seatable_password or SEATABLE_PASSWORD,
+        "seatable_url": seatable_url,
+        "seatable_username": seatable_username,
+        "seatable_password": seatable_password,
     }
 
     async def main():

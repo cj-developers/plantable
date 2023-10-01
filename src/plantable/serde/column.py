@@ -1,8 +1,7 @@
 from enum import Enum
 from typing import List
 
-from dataclasses_avroschema.avrodantic import AvroBaseModel
-from pydantic import Extra, Field
+from pydantic import Extra, Field, BaseModel
 
 __all__ = [
     "Text",
@@ -37,7 +36,7 @@ __all__ = [
 
 
 # SeaTableBaseModel
-class SeaTableType(AvroBaseModel):
+class SeaTableType(BaseModel):
     name: str
     anchor: str = None
     _type: str = "text"
@@ -59,9 +58,9 @@ class SeaTableType(AvroBaseModel):
                 if "column_data" not in schema:
                     schema["column_data"] = dict()
                 if isinstance(value, list):
-                    value = [x.to_dict() if isinstance(x, AvroBaseModel) else x for x in value]
+                    value = [x.to_dict() if isinstance(x, BaseModel) else x for x in value]
                 else:
-                    value = value.to_dict() if isinstance(value, AvroBaseModel) else value
+                    value = value.to_dict() if isinstance(value, BaseModel) else value
                 schema["column_data"].update({k: value})
 
         return {k: v for k, v in schema.items() if v}
@@ -254,12 +253,12 @@ class ButtonActionType(str, Enum):
     open_url: str = "open_url"
 
 
-class ButtonAction(AvroBaseModel):
+class ButtonAction(BaseModel):
     action_type: ButtonActionType
     enable_condition_execution: bool = False
 
 
-class Filter(AvroBaseModel):
+class Filter(BaseModel):
     column_key: str
     filter_predicate: str = "is_not_empty"
     filter_term: str = ""

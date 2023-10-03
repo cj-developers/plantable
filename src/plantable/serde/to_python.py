@@ -39,9 +39,15 @@ class ToPythonDict:
         }
 
     def checkbox(self, value, data: dict = None) -> bool:
+        if value is None:
+            return False
         return value
 
     def text(self, value: str, data: dict = None) -> str:
+        return value
+
+    # [NOTE] formula column의 result_type이 'text'가 아닌 'string'을 반환.
+    def string(self, value: str, data: dict = None) -> str:
         return value
 
     def button(self, value: str, data: dict = None) -> str:

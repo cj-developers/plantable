@@ -20,5 +20,3 @@ SYSTEM_FIELDS = {
     "_mtime": {"column_type": "mtime"},
     "_last_modifier": {"column_type": "last-modifier"},
 }
-
-#   dfdf

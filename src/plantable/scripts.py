@@ -4,7 +4,6 @@ import click
 import uvicorn
 from click_loglevel import LogLevel
 
-from .agent import conf as AGENT_CONF
 
 logger = logging.getLogger(__file__)
 
@@ -17,55 +16,6 @@ def plantable():
 @plantable.command()
 def hello():
     print("Hello, Plantable!")
-
-
-@plantable.group()
-def agent():
-    pass
-
-
-@agent.command()
-@click.option("--seatable-url", default=AGENT_CONF.SEATABLE_URL, required=True)
-@click.option("--seatable-username", default=AGENT_CONF.SEATABLE_USERNAME, required=True)
-@click.option("--seatable-password", default=AGENT_CONF.SEATABLE_PASSWORD, required=True)
-@click.option("--redis-host", default=AGENT_CONF.REDIS_HOST, required=True)
-@click.option("--redis-port", default=AGENT_CONF.REDIS_PORT, required=True)
-@click.option("--log-level", default=logging.WARNING, type=LogLevel())
-def run_producer(seatable_url, seatable_username, seatable_password, redis_host, redis_port, log_level):
-    import asyncio
-
-    from redis.exceptions import ConnectionError as RedisConnectionError
-
-    from plantable.agent import Producer, RedisStreamAdder
-
-    logging.basicConfig(level=log_level)
-
-    REDIS_CONF = {"host": redis_host, "port": redis_port}
-
-    SEATABLE_CONF = {
-        "seatable_url": seatable_url,
-        "seatable_username": seatable_username,
-        "seatable_password": seatable_password,
-    }
-
-    async def main():
-        handler = RedisStreamAdder(**REDIS_CONF)
-        for _ in range(12):
-            try:
-                await handler.redis_client.ping()
-                break
-            except RedisConnectionError:
-                print("Wait Redis...")
-            await asyncio.sleep(5.0)
-
-        producer = Producer(**SEATABLE_CONF, handler=handler)
-
-        try:
-            await producer.run()
-        except asyncio.CancelledError:
-            return
-
-    asyncio.run(main())
 
 
 @plantable.group()

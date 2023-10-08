@@ -69,9 +69,7 @@ def pylist_to_parquet(records: List[dict], version: str = "1.0") -> bytes:
 
 
 # Read Table using BaseClient as Parquet
-async def table_to_parquet(
-    client: BaseClient, table_name: str, modified_before: str, modified_after: str
-):
+async def table_to_parquet(client: BaseClient, table_name: str, modified_before: str, modified_after: str):
     records = await client.read_table(
         table_name=table_name,
         modified_before=modified_before,

@@ -1,10 +1,14 @@
+################################
+# UNDER DEV. - DO NOT USE
+################################
+
 import logging
 
 from plantable import model as pm
 from plantable.serde.const import DT_FMT, SYSTEM_FIELDS, TZ
 
 from ...model import Table
-from .deserializer import TableDeserializer
+from .deserializer import Deserializer
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +80,7 @@ SYSTEM_COLUMNS = {
 ################################################################
 # Converter
 ################################################################
-class ToAvro(TableDeserializer):
+class ToAvro(Deserializer):
     def init_schema(self):
         # copy system columns
         hidden_fields = SYSTEM_COLUMNS.copy()

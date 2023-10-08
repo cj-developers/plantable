@@ -126,6 +126,11 @@ class Column(_Model):
     edit_metadata_permission_type: str = None  # ''
     edit_metadata_permitted_users: List[str] = None  # []
     description: str = None  # None
+    # [NOTE] 아래 prop들은 컬럼 삭제하였다가 undo하면 이후부터 생김...
+    idx: int = None
+    last_frozen: bool = None
+    left: int = None
+    rowType: str = None
 
     def to_column_info(self):
         return {

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import List, Union
+from typing import List, Union, Callable
 
 import pyarrow as pa
 import requests
@@ -22,7 +22,7 @@ from ..model import (
     View,
 )
 from ..model.column import SeaTableType
-from ..serde.deserializer import ToPython
+from ..serde.deserializer import ToPython, ToPostgres, Deserializer
 from ..serde.serializer import FromPython
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
@@ -531,8 +531,7 @@ class BaseClient(HttpClient):
         results = await self.read_table(table_name=table_name, columns=["_id", key_column])
         return {r[key_column]: r["_id"] for r in results}
 
-    # (CUSTOM) read_table
-    async def read_table(
+    async def _read_table(
         self,
         table_name: str,
         columns: List[str] = None,
@@ -541,8 +540,7 @@ class BaseClient(HttpClient):
         offset: int = 0,
         limit: int = None,
         mtime: str = "_mtime",
-        deserialize: bool = True,
-    ) -> List[dict]:
+    ):
         MAX_LIMIT = 10000
         OFFSET = 0
 
@@ -578,9 +576,35 @@ class BaseClient(HttpClient):
                 if len(_rows) < MAX_LIMIT:
                     break
 
+        return rows
+
+    # (CUSTOM) read table with schema
+    async def read_table_with_schema(
+        self,
+        table_name: str,
+        columns: List[str] = None,
+        modified_before: str = None,
+        modified_after: str = None,
+        offset: int = 0,
+        limit: int = None,
+        mtime: str = "_mtime",
+        Deserializer: Deserializer = ToPython,
+    ) -> List[dict]:
+        # list rows
+        rows = await self._read_table(
+            table_name=table_name,
+            columns=columns,
+            modified_before=modified_before,
+            modified_after=modified_after,
+            offset=offset,
+            limit=limit,
+            mtime=mtime,
+        )
+
         # to python data type
-        if deserialize:
-            deserializer = await self.generate_deserializer(table_name=table_name)
+        if Deserializer:
+            ref_table = await self.get_table(table_name=table_name)
+            deserializer = Deserializer(table=ref_table, base_uuid=self.dtable_uuid)
             try:
                 rows = deserializer(*rows)
             except Exception as ex:
@@ -589,7 +613,33 @@ class BaseClient(HttpClient):
                 )
                 logger.error(_msg)
                 raise ex
+            return deserializer.schema(), rows
 
+        return None, rows
+
+    # (CUSTOM) read table
+    async def read_table(
+        self,
+        table_name: str,
+        columns: List[str] = None,
+        modified_before: str = None,
+        modified_after: str = None,
+        offset: int = 0,
+        limit: int = None,
+        mtime: str = "_mtime",
+        Deserializer: Deserializer = ToPython,
+    ) -> List[dict]:
+        # list rows
+        _, rows = await self.read_table_with_schema(
+            table_name=table_name,
+            columns=columns,
+            modified_before=modified_before,
+            modified_after=modified_after,
+            offset=offset,
+            limit=limit,
+            mtime=mtime,
+            Deserializer=Deserializer,
+        )
         return rows
 
     # (CUSTOM) read table as DataFrame
@@ -602,7 +652,6 @@ class BaseClient(HttpClient):
         offset: int = 0,
         limit: int = None,
         mtime: str = "_mtime",
-        deserialize: bool = True,
     ):
         rows = await self.read_table(
             table_name=table_name,
@@ -612,7 +661,7 @@ class BaseClient(HttpClient):
             offset=offset,
             limit=limit,
             mtime=mtime,
-            deserialize=deserialize,
+            deserialize=ToPython,
         )
 
         if not rows:
@@ -630,7 +679,8 @@ class BaseClient(HttpClient):
         direction: str = "asc",
         start: int = 0,
         limit: int = None,
-        deserialize: bool = True,
+        Deserializer: Deserializer = ToPython,
+        return_schema: bool = False,
     ):
         rows = await self.list_rows(
             table_name=table_name,
@@ -643,14 +693,17 @@ class BaseClient(HttpClient):
         )
 
         # to python data type
-        if deserialize:
-            deserializer = await self.generate_deserializer(table_name=table_name)
+        if Deserializer:
+            ref_table = await self.get_table(table_name=table_name)
+            deserializer = Deserializer(table=ref_table, base_uuid=self.dtable_uuid)
             try:
                 rows = deserializer(*rows)
             except Exception as ex:
                 _msg = f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}', view '{view_name}'"
                 logger.error(_msg)
                 raise ex
+            if return_schema:
+                return rows, deserializer.schema()
 
         return rows
 
@@ -664,7 +717,6 @@ class BaseClient(HttpClient):
         direction: str = "asc",
         start: int = 0,
         limit: int = None,
-        deserialize: bool = True,
     ):
         rows = await self.read_view(
             table_name=table_name,
@@ -674,7 +726,8 @@ class BaseClient(HttpClient):
             direction=direction,
             start=start,
             limit=limit,
-            deserialize=deserialize,
+            Deserializer=ToPython,
+            return_schema=False,
         )
 
         if not rows:

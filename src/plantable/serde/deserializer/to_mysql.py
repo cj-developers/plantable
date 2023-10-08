@@ -1,3 +1,7 @@
+################################
+# UNDER DEV. - DO NOT USE
+################################
+
 import logging
 from datetime import date, datetime
 from typing import Any, List, Union
@@ -8,7 +12,7 @@ from sqlalchemy.dialects.mysql.types import DATETIME, FLOAT, INTEGER, TEXT, TIME
 from plantable import model as pm
 from plantable.serde.const import DT_FMT, SYSTEM_FIELDS, TZ
 
-from .deserializer import TableDeserializer
+from .deserializer import Deserializer
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +90,7 @@ def seatable_to_mysql_table(table: pm.Table, table_name_prefix: str = None) -> L
 ################################################################
 # Converter
 ################################################################
-class ToMysql(TableDeserializer):
+class ToMysql(Deserializer):
     def __init__(self, table: Table, users: dict = None):
         self.table = table
         self.users = users

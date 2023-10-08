@@ -2,293 +2,341 @@ import logging
 from datetime import date, datetime
 from typing import Any, List, Union
 
-from sqlalchemy import Column, MetaData, Table
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import (
     ARRAY,
-    BIGINT,
-    BIT,
     BOOLEAN,
-    BYTEA,
-    CHAR,
-    CIDR,
-    CITEXT,
     DATE,
-    DATEMULTIRANGE,
-    DATERANGE,
-    DOMAIN,
-    DOUBLE_PRECISION,
-    ENUM,
     FLOAT,
-    HSTORE,
-    INET,
-    INT4MULTIRANGE,
-    INT4RANGE,
-    INT8MULTIRANGE,
-    INT8RANGE,
     INTEGER,
     INTERVAL,
-    JSON,
-    JSONB,
-    JSONPATH,
-    MACADDR,
-    MACADDR8,
-    MONEY,
-    NUMERIC,
-    NUMMULTIRANGE,
-    NUMRANGE,
-    OID,
-    REAL,
-    REGCLASS,
-    REGCONFIG,
     SMALLINT,
     TEXT,
-    TIME,
     TIMESTAMP,
-    TSMULTIRANGE,
-    TSQUERY,
-    TSRANGE,
-    TSTZMULTIRANGE,
-    TSTZRANGE,
-    TSVECTOR,
-    UUID,
     VARCHAR,
 )
 
-from plantable import model as pm
-from plantable.serde.const import DT_FMT, SYSTEM_FIELDS, TZ
+from plantable.serde.const import DT_FMT, TZ
 
-from .deserializer import Deserializer
+from ...model import Column, Table, User
+from .deserializer import ColumnDeserializer, Deserializer
 
 logger = logging.getLogger(__name__)
 
 
-SYSTEM_COLUMNS = {
-    "_id": {"key": "_id", "type": "text", "data": None},
-    "_locked": {"key": "_locked", "type": "checkbox", "data": None},
-    "_locked_by": {"key": "_locked_by", "type": "text", "data": None},
-    "_archived": {"key": "_archived", "type": "checkbox", "data": None},
-    "_creator": {"key": "_creator", "type": "creator", "data": None},
-    "_ctime": {"key": "_ctime", "type": "ctime", "data": None},
-    "_mtime": {"key": "_mtime", "type": "mtime", "data": None},
-    "_last_modifier": {"key": "_last_modifier", "type": "last-modifier", "data": None},
-}
-
-
-class PostgresType:
-    def __init__(self, name: str, data: dict = None, nullable: bool = True):
-        self.name = name
-        self.data = data
-        self.nullable = nullable
-        self.subtype = None
-
-    def __call__(self, x):
-        return {self.name: x if x is None else self.converter(x)}
-
+################################################################
+# Postgres Types for SeaTable
+################################################################
+class PostgresId(ColumnDeserializer):
     def schema(self):
-        raise NotImplementedError
+        return sa.Column(self.name, VARCHAR(255), nullable=False, primary_key=True)
 
-    def converter(self, x):
-        return x
+    def convert(self, x):
+        return str(x)
 
 
-class PostgresCheckbox(PostgresType):
+class PostgresBool(ColumnDeserializer):
     def schema(self):
-        return Column(self.name, BOOLEAN, nullable=self.nullable)
+        return sa.Column(self.name, BOOLEAN, nullable=True)
+
+    def convert(self, x):
+        return bool(x)
 
 
-class PostgresText(PostgresType):
+class PostgresText(ColumnDeserializer):
     def schema(self):
-        return Column(self.name, TEXT, nullable=self.nullable)
+        return sa.Column(self.name, TEXT, nullable=True)
+
+    def convert(self, x):
+        return str(x)
 
 
-class PostgresNumber(PostgresType):
-    def __init__(self, name: str, data: dict = None, nullable: bool = True):
-        super().__init__(name=name, data=data, nullable=nullable)
-        if self.data and self.data.get("enable_precision") and self.data["precision"] == 0:
-            self.subType = "INTEGER"
-
+class PostgresEmail(ColumnDeserializer):
     def schema(self):
-        if self.subType == "INTEGER":
-            return Column(self.name, INTEGER, nullable=self.nullable)
-        return Column(self.name, FLOAT, nullable=self.nullable)
+        return sa.Column(self.name, VARCHAR(2083), nullable=True)
 
-    def converter(self, x):
-        if self.subType == "INTEGER":
-            return int(x)
+    def convert(self, x):
+        return str(x)
+
+
+class PostgresUrl(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, VARCHAR(2083), nullable=True)
+
+    def convert(self, x):
+        return str(x)
+
+
+class PostgresRate(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, SMALLINT, nullable=True)
+
+    def convert(self, x):
+        return int(x)
+
+
+class _PostgresInteger(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, INTEGER, nullable=True)
+
+    def convert(self, x):
+        return int(x)
+
+
+class _PostgresFloat(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, FLOAT, nullable=True)
+
+    def convert(self, x):
         return float(x)
 
 
-class PostgresDate(PostgresType):
-    def __init__(self, name: str, data: dict = None, nullable: bool = True):
-        super().__init__(name=name, data=data, nullable=nullable)
+class PostgresNumber(ColumnDeserializer):
+    def __init__(
+        self,
+        name: str,
+        seatable_type: str,
+        data: dict = None,
+        users: List[dict] = None,
+        link_column: Column = None,
+    ):
+        super().__init__(name=name, seatable_type=seatable_type, data=data, users=users, link_column=link_column)
+        if self.data.get("enable_precision"):
+            self.sub_deserializer = _PostgresInteger(name=self.name, seatable_type=self.seatable_type, data=self.data)
+        else:
+            self.sub_deserializer = _PostgresFloat(name=self.name, seatable_type=self.seatable_type, data=self.data)
+
+    def schema(self):
+        return self.sub_deserializer.schema()
+
+    def convert(self, x):
+        return self.sub_deserializer(x)
+
+
+class _PostgresDate(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, DATE, nullable=True)
+
+    def convert(self, x):
+        return date.fromisoformat(x[:10])
+
+
+class _PostgresDatetime(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, TIMESTAMP, nullable=True)
+
+    def convert(self, x):
+        if x.endswith("Z"):
+            x = x.replace("Z", "+00:00", 1)
+        try:
+            x = datetime.strptime(x, DT_FMT)
+        except Exception as ex:
+            x = datetime.fromisoformat(x)
+        return x.astimezone(TZ)
+
+
+class PostgresDate(ColumnDeserializer):
+    def __init__(
+        self,
+        name: str,
+        seatable_type: str,
+        data: dict = None,
+        users: List[dict] = None,
+        link_column: Column = None,
+    ):
+        super().__init__(name=name, seatable_type=seatable_type, data=data, users=users, link_column=link_column)
         if self.data and self.data["format"] == "YYYY-MM-DD":
-            self.subType = "TIMESTAMP"
+            self.sub_deserializer = _PostgresDate(name=self.name, seatable_type=self.seatable_type, data=self.data)
+        else:
+            self.sub_deserializer = _PostgresDatetime(name=self.name, seatable_type=self.seatable_type, data=self.data)
 
     def schema(self):
-        if self.subType == "TIMESTAMP":
-            return Column(self.name, TIMESTAMP, nullable=self.nullable)
-        return Column(self.name, DATE, nullable=self.nullable)
+        return self.sub_deserializer.schema()
 
-    def converter(self, x):
-        if self.subType == "TIMESTAMP":
+    def convert(self, x):
+        return self.sub_deserializer(x)
+
+
+class PostgresDuration(ColumnDeserializer):
+    def schema(self):
+        # [TODO] 지금은 "초"만 사용하는 정수 - 나중에 바꿀 것
+        return sa.Column(self.name, INTEGER, nullable=True)
+
+    def convert(self, x):
+        return int(x)
+
+
+class PostgresSingleSelect(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, VARCHAR(255), nullable=True)
+
+    def convert(self, x):
+        return str(x)
+
+
+class PostgresMultipleSelect(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, ARRAY(VARCHAR(255)), nullable=True)
+
+    def convert(self, x):
+        return [str(_x) for _x in x]
+
+
+class PostgresUser(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, VARCHAR(255), nullable=True)
+
+    def convert(self, x):
+        if not self.users:
             return x
+        return self.users[x] if x in self.users else x
+
+
+class PostgresListUsers(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, ARRAY(VARCHAR(255)), nullable=True)
+
+    def convert(self, x):
+        if not self.users:
+            return x
+        return [self.users[_x] if _x in self.users else _x for _x in x]
+
+
+class PostgresFile(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, ARRAY(VARCHAR(2083)), nullable=True)
+
+    def convert(self, x):
+        return [_x["url"] for _x in x]
+
+
+class PostgresImage(ColumnDeserializer):
+    def schema(self):
+        return sa.Column(self.name, ARRAY(VARCHAR(2083)), nullable=True)
+
+    def convert(self, x):
         return x
 
 
-class PostgresDuration(PostgresType):
+class PostgresAutoNumber(ColumnDeserializer):
     def schema(self):
-        return Column(self.name, INTERVAL("seconds"), nullable=self.nullable)
+        return sa.Column(self.name, VARCHAR(255), nullable=True)
+
+    def convert(self, x):
+        return str(x)
 
 
-class PostgresTimestamp(PostgresType):
-    def schema(self):
-        return Column(self.name, TIMESTAMP, self.nullable)
-
-    def converter(self, x):
-        return x
-
-
-class PostgresSingleSelect(PostgresType):
-    def schema(self):
-        return Column(self.name, TEXT, nullable=self.nullable)
-
-
-class PostgresMultipleSelect(PostgresType):
-    def schema(self):
-        return Column(self.name, ARRAY(TEXT), nullable=self.nullable)
-
-
-class PostgresLink(PostgresType):
-    def schema(self):
-        return Column(self.name, ARRAY(TEXT), nullable=self.nullable)
-
-
-class PostgresLinkFormula(PostgresType):
-    def schema(self):
-        return Column(self.name, TEXT, nullable=self.nullable)
-
-
-class PostgresUser(PostgresType):
-    def schema(self):
-        return Column(self.name, TEXT, nullable=self.nullable)
-
-
-class PostgresCollaborator(PostgresType):
-    def schema(self):
-        return Column(self.name, ARRAY(TEXT), nullable=self.nullable)
-
-
-class PostgresCreator(PostgresType):
-    def schema(self):
-        return Column(self.name, TEXT, nullable=self.nullable)
-
-
-class PostgresLastModifier(PostgresType):
-    def schema(self):
-        return Column(self.name, TEXT, nullable=self.nullable)
-
-
-class PostgresFile(PostgresType):
-    def schema(self):
-        return Column(self.name, ARRAY(TEXT), nullable=self.nullable)
-
-
-class PostgresImage(PostgresType):
-    def schema(self):
-        return Column(self.name, ARRAY(TEXT), nullable=self.nullable)
-
-
-class PostgresFormula(PostgresType):
-    def schema(self):
-        return Column(self.name, TEXT, nullable=self.nullable)
-
-
-class PostgresAutoNumber(PostgresType):
-    def schema(self):
-        return Column(self.name, TEXT, nullable=self.nullable)
-
-
-SCHEMA_MAP = {
-    "checkbox": PostgresCheckbox,
+DESERIALIZER = {
+    "row-id": PostgresId,
+    "checkbox": PostgresBool,
+    "bool": PostgresBool,  # formula가 result_type으로 bool을 사용
     "text": PostgresText,
-    "string": PostgresText,
+    "string": PostgresText,  # formula가 result_type으로 string을 사용
     "button": PostgresText,
     "long-text": PostgresText,
-    "email": PostgresText,
-    "url": PostgresText,
-    "rate": PostgresText,
+    "email": PostgresEmail,
+    "url": PostgresUrl,
+    "rate": PostgresRate,
     "number": PostgresNumber,
     "date": PostgresDate,
     "duration": PostgresDuration,
-    "ctime": PostgresTimestamp,
-    "mtime": PostgresTimestamp,
+    "ctime": PostgresDate,
+    "mtime": PostgresDate,
     "single-select": PostgresSingleSelect,
     "multiple-select": PostgresText,
-    "link": PostgresLink,
-    "link-formula": PostgresText,
     "user": PostgresUser,
-    "collaborator": PostgresCollaborator,
-    "creator": PostgresCreator,
-    "last-modifier": PostgresLastModifier,
+    "collaborator": PostgresListUsers,
+    "creator": PostgresUser,
+    "last-modifier": PostgresUser,
     "file": PostgresFile,
     "image": PostgresImage,
-    "formula": PostgresFormula,
     "auto-number": PostgresAutoNumber,
 }
 
 
-def seatable_to_mysql_table(table: pm.Table, table_name_prefix: str = None) -> List[Column]:
-    # copy system columns
-    sys_columns = SYSTEM_COLUMNS.copy()
+class PostgresFormula(ColumnDeserializer):
+    def __init__(
+        self,
+        name: str,
+        seatable_type: str,
+        data: dict = None,
+        users: List[dict] = None,
+        link_column: Column = None,
+    ):
+        super().__init__(name=name, seatable_type=seatable_type, data=data, users=users, link_column=link_column)
+        self.sub_deserializer = DESERIALIZER[self.data["result_type"]](
+            name=self.name, seatable_type=self.data["result_type"], data=dict()
+        )
 
-    # add columns
-    columns = [Column("_id", VARCHAR(32), primary_key=True)]
-    for c in table.columns:
-        columns.append(SCHEMA_MAP[c.type](c))
-        if c.key in sys_columns:
-            sys_columns.pop(c.key)
+    def schema(self):
+        return self.sub_deserializer.schema()
 
-    # add system columns if is not added
-    for c in sys_columns:
-        columns.append(sys_columns[c])
+    def convert(self, x):
+        if x == "#VALUE!":
+            return None
+        return self.sub_deserializer(x)
 
-    table_name = table.name if not table_name_prefix else "__".join([table_name_prefix, table.name])
-    return Table(table_name, MetaData(), *columns)
+
+class PostgresLink(ColumnDeserializer):
+    def __init__(
+        self,
+        name: str,
+        seatable_type: str,
+        data: dict = None,
+        users: List[dict] = None,
+        link_column: Column = None,
+    ):
+        super().__init__(name=name, seatable_type=seatable_type, data=data, users=users, link_column=link_column)
+
+        self.sub_deserializer = DESERIALIZER[self.data["array_type"]](
+            name=self.name, seatable_type=self.data["array_type"], data=self.data["array_data"]
+        )
+        self.is_multiple = self.data["is_multiple"]
+
+    def schema(self):
+        return self.sub_deserializer.schema()
+
+    def convert(self, x):
+        x = [self.sub_deserializer(_x.get("display_value")) for _x in x]
+        if not x:
+            return None
+        if self.is_multiple:
+            return x
+        return x[0]
+
+
+class PostgresLinkFormula(ColumnDeserializer):
+    def __init__(
+        self,
+        name: str,
+        seatable_type: str,
+        data: dict = None,
+        users: List[dict] = None,
+        link_column: Column = None,
+    ):
+        super().__init__(name=name, seatable_type=seatable_type, data=data, users=users, link_column=link_column)
+
+        self.sub_deserializer = DESERIALIZER[self.data["array_type"]](
+            name=self.name, seatable_type=self.data["array_type"], data=self.data["array_data"]
+        )
+
+    def schema(self):
+        return self.sub_deserializer.schema()
+
+    def convert(self, x):
+        return [self.sub_deserializer(_x) for _x in x]
+
+
+DESERIALIZER.update({"formula": PostgresFormula, "link": PostgresLink, "link-formula": PostgresText})
 
 
 ################################################################
-# Converter
+# Seatable to Postgres
 ################################################################
 class ToPostgres(Deserializer):
-    def __init__(self, table: Table, users: dict = None):
-        self.table = table
-        self.users = users
+    Deserializer = DESERIALIZER
 
-        self.columns = {
-            **{column.name: {"column_type": column.type, "column_data": column.data} for column in table.columns},
-            **SYSTEM_FIELDS,
-        }
-
-        self.schema = self.init_schema()
-
-        self.user_map = (
-            {user.email: f"{user.name} ({user.contact_email})" for user in self.users} if self.users else None
-        )
-        self.row_id_map = {column.key: column.name for column in table.columns}
-
-    def init_schema(self):
-        # copy system columns
-        hidden_fields = SYSTEM_COLUMNS.copy()
-
-        # add fields
-        fields = [Column("_locked", VARCHAR(255), nullable=True)]
-        for c in self.table.columns:
-            fields.append(SCHEMA_MAP[c.type](c))
-            if c.key in hidden_fields:
-                hidden_fields.pop(c.key)
-
-        # ramained hidden fields
-        for c in hidden_fields:
-            fields.append(hidden_fields[c])
-
-        return Table(self.table.name, MetaData(), *fields)
+    def schema(self):
+        name = self.generate_unique_table_name()
+        columns = [column.schema() for _, column in self.columns.items()]
+        return sa.Table(name, sa.MetaData(), *columns)

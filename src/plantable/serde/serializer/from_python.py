@@ -1,10 +1,11 @@
 import logging
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Any, List, Union
 
 import requests
-from .const import DT_FMT, SYSTEM_FIELDS, TZ
-from ..model import Table
+
+from ...model import Table
+from ..const import DT_FMT, SYSTEM_FIELDS, TZ
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 ################################################################
 # Converter
 ################################################################
-class ToSeaTable:
+class FromPython:
     def __init__(self, table: Table, overwrite_none: bool = False):
         self.table_name = table.name
         self.overwrite_none = overwrite_none

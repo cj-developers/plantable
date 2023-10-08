@@ -1,44 +1,31 @@
 import asyncio
 import logging
-import time
-from datetime import datetime, date
-from typing import Callable, List, Union
+from datetime import datetime
+from typing import List, Union
 
-import pandas as pd
 import pyarrow as pa
-import pyarrow.parquet as pq
 import requests
-import socketio
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from pypika import MySQLQuery as PikaQuery
 from pypika import Table as PikaTable
 from pypika.dialects import QueryBuilder
 from tabulate import tabulate
-from ..serde.to_seatable import ToSeaTable
+
 from ..model import (
-    DTABLE_ICON_COLORS,
-    DTABLE_ICON_LIST,
-    Admin,
-    ApiToken,
-    Base,
     BaseActivity,
     BaseToken,
-    Column,
     Metadata,
     SelectOption,
     Table,
-    Team,
-    User,
     UserInfo,
     View,
-    Webhook,
 )
-from ..serde import ToPythonDict
-from ..serde.column import SeaTableType
+from ..model.column import SeaTableType
+from ..serde.deserializer import ToPython
+from ..serde.serializer import FromPython
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
-from .exception import MoreRows
 
 logger = logging.getLogger()
 
@@ -322,7 +309,7 @@ class BaseClient(HttpClient):
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/rows/"
 
         table = await self.get_table(table_name=table_name)
-        serializer = ToSeaTable(table)
+        serializer = FromPython(table)
 
         json = {"table_name": table_name, "row": serializer(row)}
         if anchor_row_id:
@@ -349,7 +336,7 @@ class BaseClient(HttpClient):
         ITEM = "success"
 
         table = await self.get_table(table_name=table_name)
-        serializer = ToSeaTable(table=table)
+        serializer = FromPython(table=table)
         json = {"table_name": table_name, "row_id": row_id, "row": serializer(row)}
 
         # add select options if not exists
@@ -399,7 +386,7 @@ class BaseClient(HttpClient):
 
         # get pk and serializer
         table = await self.get_table(table_name=table_name)
-        serializer = ToSeaTable(table=table)
+        serializer = FromPython(table=table)
 
         # prep link columns
         link_columns = self.prep_link_columns(table=table)
@@ -434,7 +421,7 @@ class BaseClient(HttpClient):
 
         # get serializer
         table = await self.get_table(table_name=table_name)
-        serializer = ToSeaTable(table=table)
+        serializer = FromPython(table=table)
 
         # prep link columns
         link_columns = self.prep_link_columns(table=table)
@@ -595,7 +582,7 @@ class BaseClient(HttpClient):
         if deserialize:
             deserializer = await self.generate_deserializer(table_name=table_name)
             try:
-                rows = [deserializer(r) for r in rows]
+                rows = deserializer(*rows)
             except Exception as ex:
                 _msg = (
                     f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}'"
@@ -659,7 +646,7 @@ class BaseClient(HttpClient):
         if deserialize:
             deserializer = await self.generate_deserializer(table_name=table_name)
             try:
-                rows = [deserializer(r) for r in rows]
+                rows = deserializer(*rows)
             except Exception as ex:
                 _msg = f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}', view '{view_name}'"
                 logger.error(_msg)
@@ -699,7 +686,7 @@ class BaseClient(HttpClient):
     async def generate_deserializer(self, table_name):
         table = await self.get_table(table_name)
         users = await self.list_collaborators() if "collaborator" in [c.type for c in table.columns] else None
-        return ToPythonDict(table=table, users=users)
+        return ToPython(table=table, users=users)
 
     ################################################################
     # LINKS

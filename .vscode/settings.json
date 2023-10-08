@@ -6,6 +6,10 @@
         "--ignore=E203,E266,E302,E501,E999,F401,F402,F403,F541,F741,F841",
         "--verbose"
     ],
+    "isort.args": [
+        "--profile",
+        "black"
+    ],
     "autoDocstring.generateDocstringOnEnter": true,
     "autoDocstring.docstringFormat": "google",
 }

@@ -9,14 +9,13 @@ from sqlalchemy.dialects.postgresql import (
     DATE,
     FLOAT,
     INTEGER,
-    INTERVAL,
     SMALLINT,
     TEXT,
     TIMESTAMP,
     VARCHAR,
 )
 
-from plantable.serde.const import DT_FMT, TZ
+from plantable.const import DT_FMT, TZ
 
 from ...model import Column, Table, User
 from .deserializer import ColumnDeserializer, Deserializer
@@ -123,7 +122,7 @@ class _PostgresDate(ColumnDeserializer):
 
 class _PostgresDatetime(ColumnDeserializer):
     def schema(self):
-        return sa.Column(self.name, TIMESTAMP, nullable=True)
+        return sa.Column(self.name, TIMESTAMP(timezone=True), nullable=True)
 
     def convert(self, x):
         if x.endswith("Z"):

@@ -28,7 +28,7 @@ from ...model.column import (
     Text,
     Url,
 )
-from ..const import SYSTEM_FIELDS
+from ...const import SYSTEM_FIELDS
 
 # Arrow to Seatable Schema
 SCHEMA_MAP = {

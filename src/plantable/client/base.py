@@ -1,17 +1,20 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import List, Union, Callable
+from typing import Any, Callable, List, Tuple, Union
 
 import pyarrow as pa
 import requests
+import sqlalchemy as sa
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from pypika import MySQLQuery as PikaQuery
+from pypika import Order
 from pypika import Table as PikaTable
 from pypika.dialects import QueryBuilder
 from tabulate import tabulate
 
+from ..const import DT_FMT, TZ
 from ..model import (
     BaseActivity,
     BaseToken,
@@ -22,7 +25,7 @@ from ..model import (
     View,
 )
 from ..model.column import SeaTableType
-from ..serde.deserializer import ToPython, ToPostgres, Deserializer
+from ..serde.deserializer import Deserializer, ToPostgres, ToPython
 from ..serde.serializer import FromPython
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
@@ -39,6 +42,17 @@ FIRST_COLUMN_TYPES = ["text", "number", "date", "single-select", "formular", "au
 def divide_chunks(x: list, chunk_size: int):
     for i in range(0, len(x), chunk_size):
         yield x[i : i + chunk_size]
+
+
+# parse string datetime
+def parse_str_datetime(x):
+    if x.endswith("Z"):
+        x = x.replace("Z", "+00:00", 1)
+    try:
+        x = datetime.strptime(x, DT_FMT)
+    except Exception:
+        x = datetime.fromisoformat(x)
+    return x.astimezone(TZ)
 
 
 ################################################################
@@ -534,9 +548,11 @@ class BaseClient(HttpClient):
     async def _read_table(
         self,
         table_name: str,
-        columns: List[str] = None,
+        select: List[str] = None,
         modified_before: str = None,
         modified_after: str = None,
+        order_by: str = None,
+        desc: bool = False,
         offset: int = 0,
         limit: int = None,
         mtime: str = "_mtime",
@@ -546,14 +562,15 @@ class BaseClient(HttpClient):
 
         # correct args
         table = PikaTable(table_name)
-        if not columns:
-            columns = ["*"]
-        if not isinstance(columns, list):
-            columns = [x.strip() for x in columns.split(",")]
+        if not select:
+            select = ["*"]
+        if not isinstance(select, list):
+            select = [x.strip() for x in select.split(",")]
         _limit = min(MAX_LIMIT, limit) if limit else limit
         _offset = offset if offset else OFFSET
 
-        q = PikaQuery.from_(table).select(*columns)
+        # generate query
+        q = PikaQuery.from_(table).select(*select)
         if modified_before:
             if isinstance(modified_before, datetime):
                 modified_before = modified_before.isoformat(timespec="milliseconds")
@@ -562,6 +579,9 @@ class BaseClient(HttpClient):
             if isinstance(modified_after, datetime):
                 modified_after = modified_after.isoformat(timespec="milliseconds")
             q = q.where(table[mtime] > modified_after)
+        if order_by:
+            q = q.orderby(order_by, order=Order.desc if desc else Order.asc)
+
         q = q.limit(_limit or MAX_LIMIT)
 
         # 1st hit
@@ -582,9 +602,58 @@ class BaseClient(HttpClient):
     async def read_table_with_schema(
         self,
         table_name: str,
-        columns: List[str] = None,
+        select: List[str] = None,
         modified_before: str = None,
         modified_after: str = None,
+        order_by: str = None,
+        desc: bool = False,
+        offset: int = 0,
+        limit: int = None,
+        mtime: str = "_mtime",
+        Deserializer: Deserializer = ToPython,
+    ) -> Tuple[Any, List[dict]]:
+        # list rows
+        rows = await self._read_table(
+            table_name=table_name,
+            select=select,
+            modified_before=modified_before,
+            modified_after=modified_after,
+            order_by=order_by,
+            desc=desc,
+            offset=offset,
+            limit=limit,
+            mtime=mtime,
+        )
+
+        if not Deserializer:
+            _msg = "Deserializer required!"
+            raise KeyError(_msg)
+
+        # to python data type
+        ref_table = await self.get_table(table_name=table_name)
+        deserializer = Deserializer(table=ref_table, base_uuid=self.dtable_uuid)
+        try:
+            rows = deserializer(*rows, select=select)
+        except Exception as ex:
+            _msg = f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}'"
+            logger.error(_msg)
+            raise ex
+
+        return {
+            "schema": deserializer.schema(),
+            "rows": rows,
+            "last_modified": deserializer.last_modified,
+        }
+
+    # (CUSTOM) read table
+    async def read_table(
+        self,
+        table_name: str,
+        select: List[str] = None,
+        modified_before: str = None,
+        modified_after: str = None,
+        order_by: str = None,
+        desc: bool = False,
         offset: int = 0,
         limit: int = None,
         mtime: str = "_mtime",
@@ -593,60 +662,36 @@ class BaseClient(HttpClient):
         # list rows
         rows = await self._read_table(
             table_name=table_name,
-            columns=columns,
+            select=select,
             modified_before=modified_before,
             modified_after=modified_after,
+            order_by=order_by,
+            desc=desc,
             offset=offset,
             limit=limit,
             mtime=mtime,
         )
 
-        # to python data type
+        # deserializer
         if Deserializer:
             ref_table = await self.get_table(table_name=table_name)
             deserializer = Deserializer(table=ref_table, base_uuid=self.dtable_uuid)
             try:
-                rows = deserializer(*rows)
+                rows = deserializer(*rows, select=select)
             except Exception as ex:
                 _msg = (
                     f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}'"
                 )
                 logger.error(_msg)
                 raise ex
-            return deserializer.schema(), rows
 
-        return None, rows
-
-    # (CUSTOM) read table
-    async def read_table(
-        self,
-        table_name: str,
-        columns: List[str] = None,
-        modified_before: str = None,
-        modified_after: str = None,
-        offset: int = 0,
-        limit: int = None,
-        mtime: str = "_mtime",
-        Deserializer: Deserializer = ToPython,
-    ) -> List[dict]:
-        # list rows
-        _, rows = await self.read_table_with_schema(
-            table_name=table_name,
-            columns=columns,
-            modified_before=modified_before,
-            modified_after=modified_after,
-            offset=offset,
-            limit=limit,
-            mtime=mtime,
-            Deserializer=Deserializer,
-        )
         return rows
 
     # (CUSTOM) read table as DataFrame
     async def read_table_as_df(
         self,
         table_name: str,
-        columns: List[str] = None,
+        select: List[str] = None,
         modified_before: str = None,
         modified_after: str = None,
         offset: int = 0,
@@ -655,7 +700,7 @@ class BaseClient(HttpClient):
     ):
         rows = await self.read_table(
             table_name=table_name,
-            columns=columns,
+            select=select,
             modified_before=modified_before,
             modified_after=modified_after,
             offset=offset,
@@ -736,10 +781,23 @@ class BaseClient(HttpClient):
         return tbl.set_index("_id", drop=True).rename_axis("row_id")
 
     # (CUSTOM) Generate Deserializer
-    async def generate_deserializer(self, table_name):
+    async def generate_deserializer(self, table_name: str):
         table = await self.get_table(table_name)
         users = await self.list_collaborators() if "collaborator" in [c.type for c in table.columns] else None
         return ToPython(table=table, users=users)
+
+    # (CUSTOM) get last modified at
+    async def get_last_mtime(self, table_name: str):
+        table = await self.get_table(table_name=table_name)
+        for column in table.columns:
+            if column.type == "mtime":
+                c = column.name
+                q = f"SELECT {c} FROM {table_name} ORDER BY {c} DESC LIMIT 1;"
+                r = await self.list_rows_with_sql(q)
+                last_mtime = parse_str_datetime(r[0][c])
+                return last_mtime
+        else:
+            raise KeyError
 
     ################################################################
     # LINKS

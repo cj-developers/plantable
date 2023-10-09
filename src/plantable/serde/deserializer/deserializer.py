@@ -1,11 +1,11 @@
 import logging
-
+from abc import abstractmethod
+from datetime import datetime
 from functools import partial
 from typing import Any, Callable, Dict, List, Union
-from abc import abstractmethod
 
 from ...model import Column, Table, User
-
+from ...const import DT_FMT, TZ
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +74,10 @@ class Deserializer:
         self.base_uuid = base_uuid or "unknown-base-uuid"
         self.users = {user.email: f"{user.name} ({user.contact_email})" for user in users} if users else None
 
+        # helper
+        self.mtime_column = None
+        self.last_modified = None
+
         self.init_columns()
 
     @property
@@ -97,15 +101,69 @@ class Deserializer:
 
         self.columns = dict()
         for c in columns:
-            name, _type, data = c["name"], c["type"], c["data"]
+            # update column deserializer
             try:
-                deseriailizer = self.Deserializer[_type](name=name, seatable_type=_type, data=data, users=self.users)
-            except Exception as ex:
-                _msg = f"create column deserializer failed - name: '{name}', seatable_type: '{_type}', data: '{data}'."
+                deseriailizer = self.Deserializer[c["type"]](
+                    name=c["name"], seatable_type=c["type"], data=c["data"], users=self.users
+                )
+            except Exception:
+                _msg = "create column deserializer failed - name: '{name}', seatable_type: '{type}', data: '{data}'.".format(
+                    **c
+                )
                 raise CreateDeserializerFailed(_msg)
             self.columns.update({c["name"]: deseriailizer})
 
-    def __call__(self, *row):
+            # we need '_mtime' always!
+            if c["type"] == "mtime" and c["name"] != "_mtime":
+                self.mtime_column = c["name"]
+
+        # we need '_mtime' always!
+        if self.mtime_column:
+            for c in SYSTEM_COLUMNS:
+                if c["name"] == "_mtime":
+                    self.columns.update(
+                        {
+                            "_mtime": self.Deserializer[c["type"]](
+                                name=c["name"], seatable_type=c["type"], data=c["data"], users=self.users
+                            )
+                        }
+                    )
+                    break
+
+    def __call__(self, *row, select: list = None):
         if row is None:
             return
-        return [{name: self.columns[name](r[name]) for name in self.columns if name in r} for r in row]
+
+        if select == "*":
+            select = None
+        if select and not isinstance(select, list):
+            select = [select]
+
+        self.last_modified = None
+        deserialized_rows = list()
+        for r in row:
+            deserialized_row = dict()
+            for name in self.columns:
+                if select and name not in select:
+                    continue
+                if name not in r:
+                    continue
+                value = self.columns[name](r[name])
+                deserialized_row.update({name: value})
+                if self.mtime_column and name == self.mtime_column:
+                    self.last_modified = self.parse_str_datetime(r[name])
+            if not select and self.mtime_column:
+                deserialized_row.update({"_mtime": deserialized_row[self.mtime_column]})
+            deserialized_rows.append(deserialized_row)
+
+        return deserialized_rows
+
+    @staticmethod
+    def parse_str_datetime(x):
+        if x.endswith("Z"):
+            x = x.replace("Z", "+00:00", 1)
+        try:
+            x = datetime.strptime(x, DT_FMT)
+        except Exception as ex:
+            x = datetime.fromisoformat(x)
+        return x.astimezone(TZ)

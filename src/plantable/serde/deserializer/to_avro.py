@@ -5,7 +5,7 @@
 import logging
 
 from plantable import model as pm
-from plantable.serde.const import DT_FMT, SYSTEM_FIELDS, TZ
+from plantable.const import DT_FMT, TZ
 
 from ...model import Table
 from .deserializer import Deserializer

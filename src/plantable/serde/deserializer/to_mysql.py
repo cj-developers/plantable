@@ -10,7 +10,7 @@ from sqlalchemy import DATE, Boolean, Column, MetaData, Table
 from sqlalchemy.dialects.mysql.types import DATETIME, FLOAT, INTEGER, TEXT, TIME, TINYINT, VARCHAR
 
 from plantable import model as pm
-from plantable.serde.const import DT_FMT, SYSTEM_FIELDS, TZ
+from plantable.const import DT_FMT, SYSTEM_FIELDS, TZ
 
 from .deserializer import Deserializer
 

@@ -5,7 +5,7 @@ from typing import Any, List, Union
 import requests
 
 from ...model import Table
-from ..const import DT_FMT, SYSTEM_FIELDS, TZ
+from ...const import DT_FMT, SYSTEM_FIELDS, TZ
 
 logger = logging.getLogger(__name__)
 

@@ -336,6 +336,6 @@ class ToPostgres(Deserializer):
     Deserializer = DESERIALIZER
 
     def schema(self):
-        name = self.generate_unique_table_name()
+        name = self.generate_table_name()
         columns = [column.schema() for _, column in self.columns.items()]
         return sa.Table(name, sa.MetaData(), *columns)

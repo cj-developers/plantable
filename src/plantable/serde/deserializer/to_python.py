@@ -297,6 +297,6 @@ class ToPython(Deserializer):
 
     def schema(self):
         return {
-            "name": self.generate_unique_table_name(),
+            "name": self.generate_table_name(),
             "columns": [{name: column.schema()} for name, column in self.columns.items()],
         }

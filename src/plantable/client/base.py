@@ -5,7 +5,6 @@ from typing import Any, Callable, List, Tuple, Union
 
 import pyarrow as pa
 import requests
-import sqlalchemy as sa
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from pypika import MySQLQuery as PikaQuery
@@ -29,30 +28,11 @@ from ..serde.deserializer import Deserializer, ToPostgres, ToPython
 from ..serde.serializer import FromPython
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
+from ..utils import parse_str_datetime, divide_chunks
 
 logger = logging.getLogger()
 
 FIRST_COLUMN_TYPES = ["text", "number", "date", "single-select", "formular", "autonumber"]
-
-
-################################################################
-# Helpers
-################################################################
-# divide chunks
-def divide_chunks(x: list, chunk_size: int):
-    for i in range(0, len(x), chunk_size):
-        yield x[i : i + chunk_size]
-
-
-# parse string datetime
-def parse_str_datetime(x):
-    if x.endswith("Z"):
-        x = x.replace("Z", "+00:00", 1)
-    try:
-        x = datetime.strptime(x, DT_FMT)
-    except Exception:
-        x = datetime.fromisoformat(x)
-    return x.astimezone(TZ)
 
 
 ################################################################
@@ -611,7 +591,7 @@ class BaseClient(HttpClient):
         limit: int = None,
         mtime: str = "_mtime",
         Deserializer: Deserializer = ToPython,
-    ) -> Tuple[Any, List[dict]]:
+    ) -> dict:
         # list rows
         rows = await self._read_table(
             table_name=table_name,
@@ -631,7 +611,7 @@ class BaseClient(HttpClient):
 
         # to python data type
         ref_table = await self.get_table(table_name=table_name)
-        deserializer = Deserializer(table=ref_table, base_uuid=self.dtable_uuid)
+        deserializer = Deserializer(table=ref_table, group_name=self.group_name, base_name=self.base_name)
         try:
             rows = deserializer(*rows, select=select)
         except Exception as ex:
@@ -640,9 +620,9 @@ class BaseClient(HttpClient):
             raise ex
 
         return {
-            "schema": deserializer.schema(),
+            "table": deserializer.schema(),
             "rows": rows,
-            "last_modified": deserializer.last_modified,
+            "last_mtime": deserializer.last_modified,
         }
 
     # (CUSTOM) read table
@@ -675,7 +655,7 @@ class BaseClient(HttpClient):
         # deserializer
         if Deserializer:
             ref_table = await self.get_table(table_name=table_name)
-            deserializer = Deserializer(table=ref_table, base_uuid=self.dtable_uuid)
+            deserializer = Deserializer(table=ref_table, group_name=self.group_name, base_name=self.base_name)
             try:
                 rows = deserializer(*rows, select=select)
             except Exception as ex:
@@ -706,7 +686,7 @@ class BaseClient(HttpClient):
             offset=offset,
             limit=limit,
             mtime=mtime,
-            deserialize=ToPython,
+            Deserializer=ToPython,
         )
 
         if not rows:
@@ -740,7 +720,7 @@ class BaseClient(HttpClient):
         # to python data type
         if Deserializer:
             ref_table = await self.get_table(table_name=table_name)
-            deserializer = Deserializer(table=ref_table, base_uuid=self.dtable_uuid)
+            deserializer = Deserializer(table=ref_table, group_name=self.group_name, base_name=self.base_name)
             try:
                 rows = deserializer(*rows)
             except Exception as ex:
@@ -938,7 +918,7 @@ class BaseClient(HttpClient):
 
     # Create New Table
     # [NOTE] 이 endpoint는 Link 컬럼을 처리하지 못 함. (2023.9.9 현재)
-    async def create_new_table(self, table_name: str, columns: List[Union[dict, SeaTableType]]):
+    async def _create_new_table(self, table_name: str, columns: List[Union[dict, SeaTableType]]):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/tables/"
 
@@ -956,14 +936,19 @@ class BaseClient(HttpClient):
 
     # (custom) Create Table
     # [NOTE] 현재 Create New Table API 문제 때문에 사용 - 2번째 Colmnn부터는 insert_column으로 추가.
-    async def create_table(self, table_name: str, columns: List[Union[dict, SeaTableType]], exist_ok: bool = True):
-        # check if already exists
+    async def create_table(self, table_name: str, columns: List[Union[dict, SeaTableType]], if_exists: str = "error"):
+        """
+        if_exists: "error" or "overwrite"
+        """
         tables = await self.list_tables()
-        if table_name in tables:
-            if not exist_ok:
+        if table_name in [t.name for t in tables]:
+            if if_exists in ["error"]:
                 _msg = f"table '{table_name}' already exists!"
                 raise KeyError(_msg)
-            return
+            r = await self.delete_table(table_name=table_name)
+            if not r["success"]:
+                _msg = f"delete table '{table_name}' failed!"
+                raise KeyError(_msg)
 
         # parse column type
         columns = [c.seatable_schema() if isinstance(c, SeaTableType) else c for c in columns]
@@ -975,7 +960,7 @@ class BaseClient(HttpClient):
             raise KeyError(_msg)
 
         # create table
-        _ = await self.create_new_table(table_name=table_name, columns=[key_column])
+        _ = await self._create_new_table(table_name=table_name, columns=[key_column])
 
         # insert columns
         for column in columns:

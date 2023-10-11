@@ -5,7 +5,7 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Union
 
 from ...model import Column, Table, User
-from ...const import DT_FMT, TZ
+from ...utils import parse_str_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +67,24 @@ class Deserializer:
     def __init__(
         self,
         table: Table,
-        base_uuid: str = None,
+        group_name: str = None,
+        base_name: str = None,
+        table_name_sep: str = "__",
         users: List[User] = None,
     ):
         self.table = table
-        self.base_uuid = base_uuid or "unknown-base-uuid"
+        self.group_name = group_name
+        self.base_name = base_name
+        self.table_name_sep = table_name_sep
         self.users = {user.email: f"{user.name} ({user.contact_email})" for user in users} if users else None
+
+        # prefix
+        prefix = []
+        if self.group_name:
+            prefix.append(self.group_name)
+        if self.base_name:
+            prefix.append(self.base_name)
+        self.table_name_prefix = self.table_name_sep.join(prefix)
 
         # helper
         self.mtime_column = None
@@ -89,8 +101,10 @@ class Deserializer:
     def schema(self):
         ...
 
-    def generate_unique_table_name(self):
-        return f"{self.base_uuid if self.base_uuid else 'unknown-base-uuid'}_{self.table.id}"
+    def generate_table_name(self):
+        if self.table_name_prefix:
+            return self.table_name_sep.join([self.table_name_prefix, self.table.name])
+        return self.table.name
 
     def init_columns(self):
         column_keys = [c.key for c in self.table.columns]
@@ -151,19 +165,9 @@ class Deserializer:
                 value = self.columns[name](r[name])
                 deserialized_row.update({name: value})
                 if self.mtime_column and name == self.mtime_column:
-                    self.last_modified = self.parse_str_datetime(r[name])
+                    self.last_modified = parse_str_datetime(r[name])
             if not select and self.mtime_column:
                 deserialized_row.update({"_mtime": deserialized_row[self.mtime_column]})
             deserialized_rows.append(deserialized_row)
 
         return deserialized_rows
-
-    @staticmethod
-    def parse_str_datetime(x):
-        if x.endswith("Z"):
-            x = x.replace("Z", "+00:00", 1)
-        try:
-            x = datetime.strptime(x, DT_FMT)
-        except Exception as ex:
-            x = datetime.fromisoformat(x)
-        return x.astimezone(TZ)

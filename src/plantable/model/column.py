@@ -46,7 +46,7 @@ class SeaTableType(BaseModel):
         schema = {
             "column_name": self.name,
             "column_type": self._type,
-            "colum_data": dict(),
+            "column_data": dict(),
             "anchor_column": self.anchor,
         }
 
@@ -92,7 +92,6 @@ class NumberFormat(str, Enum):
 # number decimal
 class NumberDecimal(str, Enum):
     dot: str = "dot"
-    # comma: str = "comma"
 
 
 # number thousands

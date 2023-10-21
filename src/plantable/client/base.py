@@ -17,13 +17,14 @@ from ..const import DT_FMT, TZ
 from ..model import (
     BaseActivity,
     BaseToken,
+    Column,
     Metadata,
     SelectOption,
     Table,
     UserInfo,
     View,
 )
-from ..model.column import SeaTableType
+from ..model.column import COLUMN_DATA
 from ..serde.deserializer import Deserializer, ToPostgres, ToPython
 from ..serde.serializer import FromPython
 from .conf import SEATABLE_URL
@@ -918,16 +919,13 @@ class BaseClient(HttpClient):
 
     # Create New Table
     # [NOTE] 이 endpoint는 Link 컬럼을 처리하지 못 함. (2023.9.9 현재)
-    async def _create_new_table(self, table_name: str, columns: List[Union[dict, SeaTableType]]):
+    async def _create_new_table(self, table_name: str, columns: List[dict] = None):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/tables/"
 
-        json = {
-            "table_name": table_name,
-            "columns": [c.seatable_schema() if isinstance(c, SeaTableType) else c for c in columns]
-            if columns
-            else None,
-        }
+        json = {"table_name": table_name}
+        if columns:
+            json.update({"columns": columns})
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             results = await self.request(session=session, method=METHOD, url=URL, json=json)
@@ -936,22 +934,16 @@ class BaseClient(HttpClient):
 
     # (custom) Create Table
     # [NOTE] 현재 Create New Table API 문제 때문에 사용 - 2번째 Colmnn부터는 insert_column으로 추가.
-    async def create_table(self, table_name: str, columns: List[Union[dict, SeaTableType]], if_exists: str = "error"):
-        """
-        if_exists: "error" or "overwrite"
-        """
+    async def create_table(self, table_name: str, columns: List[dict], overwrite: bool = False):
         tables = await self.list_tables()
         if table_name in [t.name for t in tables]:
-            if if_exists in ["error"]:
+            if not overwrite:
                 _msg = f"table '{table_name}' already exists!"
                 raise KeyError(_msg)
             r = await self.delete_table(table_name=table_name)
             if not r["success"]:
                 _msg = f"delete table '{table_name}' failed!"
                 raise KeyError(_msg)
-
-        # parse column type
-        columns = [c.seatable_schema() if isinstance(c, SeaTableType) else c for c in columns]
 
         # seprate key column
         key_column, columns = columns[0], columns[1:]
@@ -1119,12 +1111,20 @@ class BaseClient(HttpClient):
     # COLUMNS
     ################################################################
     # Insert Column
-    async def insert_column(self, table_name: str, column: Union[dict, SeaTableType]):
+    async def insert_column(
+        self, table_name: str, column_name: str, column_type: str, column_data: dict = None, anchor_column: str = None
+    ):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/columns/"
 
-        column = column.seatable_schema() if isinstance(column, SeaTableType) else column
-        json = {"table_name": table_name, **column}
+        json = await self.ensure_column(
+            table_name=table_name,
+            column_name=column_name,
+            column_type=column_type,
+            column_data=column_data,
+            anchor_column=anchor_column,
+        )
+        print(json)
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             results = await self.request(session=session, method=METHOD, url=URL, json=json)
@@ -1133,21 +1133,118 @@ class BaseClient(HttpClient):
 
     # Append Columns
     # [NOTE] 이 endpoint는 Link 컬럼을 처리하지 못 함. (2023.9.9 현재)
-    async def append_columns(self, table_name: str, columns: List[Union[dict, SeaTableType]]):
+    async def append_columns(self, table_name: str, columns: List[dict]):
         METHOD = "POST"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-append-columns/"
 
+        columns = await asyncio.gather(*[self.ensure_column(table_name=table_name, **column) for column in columns])
+        json = {"table_name": table_name, "columns": list()}
+        for column in columns:
+            column.pop("table_name")
+            json["columns"].append(column)
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # Update Column
+    async def modify_column_type(self, table_name: str, column_name: str, new_column_type: str):
+        METHOD = "PUT"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/columns/"
+
         json = {
+            "op_type": "modify_column_type",
             "table_name": table_name,
-            "columns": [c.seatable_schema() if isinstance(c, SeaTableType) else c for c in columns]
-            if columns
-            else None,
+            "column": column_name,
+            "new_column_type": new_column_type,
         }
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             results = await self.request(session=session, method=METHOD, url=URL, json=json)
 
         return results
+
+    # Rename Column
+    async def rename_column(self, table_name: str, column_name: str, new_column_name: str):
+        METHOD = "PUT"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/columns/"
+
+        json = {
+            "op_type": "rename_column",
+            "table_name": table_name,
+            "column": column_name,
+            "new_column_name": new_column_name,
+        }
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # Resize Column
+    async def resize_column(self, table_name: str, column_name: str, new_column_width: int):
+        METHOD = "PUT"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/columns/"
+
+        json = {
+            "op_type": "resize_column",
+            "table_name": table_name,
+            "column": column_name,
+            "new_column_width": new_column_width,
+        }
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # Move Column
+    async def move_column(self, table_name: str, column_name: str, target_column: str):
+        METHOD = "PUT"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/columns/"
+
+        json = {
+            "op_type": "move_column",
+            "table_name": table_name,
+            "column": column_name,
+            "target_column": target_column,
+        }
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # Freeze Column
+    async def freeze_column(self, table_name: str, column_name: str, frozen: bool):
+        METHOD = "PUT"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/columns/"
+
+        json = {
+            "op_type": "freeze_column",
+            "table_name": table_name,
+            "column": column_name,
+            "frozen": frozen,
+        }
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results
+
+    # Delete Column
+    async def delete_column(self, table_name: str, column_name: str):
+        METHOD = "DELETE"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/columns/"
+        ITEM = "success"
+
+        json = {"table_name": table_name, "column": column_name}
+
+        async with self.session_maker(token=self.base_token.access_token) as session:
+            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+
+        return results.get(ITEM)
 
     # (custom) Get Column
     async def get_column(self, table_name: str, column_name: str):
@@ -1310,3 +1407,72 @@ class BaseClient(HttpClient):
     # SNAPSHOTS
     ################################################################
     # TBD
+
+    ################################################################
+    # Helper
+    ################################################################
+    # column validator
+    async def ensure_column(
+        self,
+        table_name: str,
+        column_name: str,
+        column_type: str,
+        column_data: dict = None,
+        anchor_column: str = None,
+    ):
+        column = {"table_name": table_name, "column_name": column_name, "column_type": column_type}
+        column_data = {} if not column_data else column_data
+
+        # for single-select, mulitple-select - auto index number
+        if column_type in ["single-select", "multiple-select"] and "options" in column_data:
+            options = column_data["options"]
+            if all([option.get("id") is None for option in options]):
+                for id, option in enumerate(options, start=1):
+                    option.update({"id": id})
+                column_data.update({"options": options})
+
+        # for link - auto add table
+        if column_type in ["link"] and "table" not in column_data:
+            column_data.update({"table": table_name})
+
+        # for button
+        if column_type in ["button"]:
+            table = await self.get_table(table_name=table_name)
+            table_id = table.id
+            for button_action in column_data["button_action_list"]:
+                # [NOTE] contact_email or name to email
+                #  - input: {to_users: ["some_user@mail.com", "some_user_name"]}
+                #  - output: {to_users: [{"value": "jlkajdfald@auth.local"}, {"value": "kajsldfasdf@auth.local"}]}
+                if "to_users" in button_action:
+                    collaborators = await self.list_collaborators()
+                    to_users = button_action.pop("to_users")
+                    to_user_ids = list()
+                    for user in to_users:
+                        for collaborator in collaborators:
+                            if collaborator.name == user or collaborator.contact_email == user:
+                                to_user_ids.append({"value": collaborator.email})
+                    button_action.update({"to_users": to_user_ids})
+                else:
+                    button_action.update({"to_users": []})
+                # [NOTE] user_column to user_col_key
+                #  - input: {to_users: ["some_user@mail.com", "some_user_name"]}
+                #  - output: {to_users: [{"value": "jlkajdfald@auth.local"}, {"value": "kajsldfasdf@auth.local"}]}
+                if "user_column" in button_action:
+                    user_column = button_action.pop("user_column")
+                    for c in table.columns:
+                        if c.name == user_column:
+                            user_col_key = c.key
+                            break
+                    else:
+                        _msg = f"user_column '{user_column}' is not in table '{table_name}'!"
+                        raise KeyError(_msg)
+                    button_action.update({"current_table_id": table_id, "user_col_key": user_col_key})
+            print(column_data)
+
+        corrected_column_data = COLUMN_DATA[column_type](**column_data)
+        column.update({"column_data": corrected_column_data.dict()})
+
+        if anchor_column:
+            column.update({"anchor_column": anchor_column})
+
+        return column

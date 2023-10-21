@@ -3,84 +3,31 @@ from typing import List
 
 from pydantic import Extra, Field, BaseModel
 
-__all__ = [
-    "Text",
-    "LongText",
-    "Integer",
-    "Number",
-    "Collaborator",
-    "Date",
-    "Datetime",
-    "Duration",
-    "SingleSelect",
-    "MultipleSelect",
-    "Image",
-    "File",
-    "Email",
-    "Url",
-    "Checkbox",
-    "Rate",
-    "Formula",
-    "Link",
-    "LinkFomula",
-    "Creator",
-    "CreationTime",
-    "LastModifier",
-    "LastModificationTime",
-    "AutoNumber",
-    "Button",
-    # Options
-    "SelectOption",
-    "OpenUrl",
-]
 
-
-# SeaTableBaseModel
-class SeaTableType(BaseModel):
-    name: str
-    anchor: str = None
-    _type: str = "text"
-
-    def seatable_schema(self):
-        DEFAULT_FIELDS = ["name", "anchor"]
-        schema = {
-            "column_name": self.name,
-            "column_type": self._type,
-            "column_data": dict(),
-            "anchor_column": self.anchor,
-        }
-
-        for k in self.schema()["properties"]:
-            if k not in DEFAULT_FIELDS:
-                value = getattr(self, k)
-                if value is None:
-                    continue
-                if "column_data" not in schema:
-                    schema["column_data"] = dict()
-                if isinstance(value, list):
-                    value = [x.to_dict() if isinstance(x, BaseModel) else x for x in value]
-                else:
-                    value = value.to_dict() if isinstance(value, BaseModel) else value
-                schema["column_data"].update({k: value})
-
-        return {k: v for k, v in schema.items() if v}
-
+# ColumnData
+class ColumnData(BaseModel):
     class Config:
         extra = Extra.forbid
 
 
-# [TEXT]
-class Text(SeaTableType):
-    _type: str = "text"
+################################################################
+# text
+################################################################
+class TextData(ColumnData):
+    pass
 
 
-# [LONG TEXT]
-class LongText(SeaTableType):
-    _type: str = "long-text"
+################################################################
+# long-text
+################################################################
+class LongTextData(ColumnData):
+    pass
 
 
-# [NUMBER]
-# number format
+################################################################
+# number
+################################################################
+# format
 class NumberFormat(str, Enum):
     number: str = "number"
     percent: str = "percent"
@@ -89,190 +36,289 @@ class NumberFormat(str, Enum):
     yen: str = "yen"
 
 
-# number decimal
+# decimal
 class NumberDecimal(str, Enum):
     dot: str = "dot"
 
 
-# number thousands
+# thousands
 class NumberThousands(str, Enum):
     no: str = "no"
-    space: str = "space"
+    dot: str = "dot"
     comma: str = "comma"
 
 
-# INTEGER
-class Integer(SeaTableType):
-    _type: str = "number"
+# number column data
+class NumberData(ColumnData):
     format: NumberFormat = "number"
     decimal: NumberDecimal = "dot"
-    thousands: NumberThousands = "no"
-    enable_precision: bool = True
-    precision: int = 0
+    thousands: NumberThousands = "comma"
 
 
-# NUMBER
-class Number(SeaTableType):
-    _type: str = "number"
-    format: NumberFormat = "number"
-    decimal: NumberDecimal = "dot"
-    thousands: NumberThousands = "no"
+################################################################
+# collaborator
+################################################################
+class CollaboratorData(ColumnData):
+    pass
 
 
-# [COLLABORATOR]
-class Collaborator(SeaTableType):
-    _type: str = "collaborator"
+################################################################
+# date
+################################################################
+# format
+class DateFormat(str, Enum):
+    iso_date: str = "YYYY-MM-DD"
+    iso_datetime: str = "YYYY-MM-DD HH:mm"
+    us_date: str = "M/D/YYYY"
+    us_datetime: str = "M/D/YYYY HH:mm"
+    european_date: str = "DD/MM/YYYY"
+    european_datetime: str = "DD/MM/YYYY HH:mm"
+    german_date: str = "DD.MM.YYYY"
+    german_datetime: str = "DD.MM.YYYY HH:mm"
 
 
-# [DATE]
-# DATE
-class Date(SeaTableType):
-    _type: str = "date"
-    format: str = Field("YYYY-MM-DD", const=True)
+# date column data
+class DateData(ColumnData):
+    format: DateFormat
 
 
-# DATETIME
-class Datetime(SeaTableType):
-    _type: str = "date"
-    format: str = Field("YYYY-MM-DD HH:mm", const=True)
+################################################################
+# duration
+################################################################
+# format
+class DurationFormat(str, Enum):
+    minutes: str = "h:mm"
+    seconds: str = "h:mm:ss"
 
 
-# [DURATION]
-class Duration(SeaTableType):
-    _type: str = "duration"
+class DurationData(ColumnData):
     format: str = "duration"
-    duration_format: str = "h:mm:ss"
+    duration_format: DurationFormat = "h:mm:ss"
 
 
-# [SINGLE-SELECT, MULTIPLE-SELECT]
-# select option
-class SelectOption(SeaTableType):
-    id: str
-    color: str = None
-    text_color: str = Field(None, alias="text-color")
+################################################################
+# single-select, multiple-select
+################################################################
+# option
+class SelectOption(BaseModel):
+    id: int = None
+    name: str
+    color: str = "lightgray"
+    text_color: str = Field("black", alias="text-color")
+
+    class Config:
+        extra = Extra.forbid
 
 
-# SINGLE SELECT
-class SingleSelect(SeaTableType):
-    _type = "single-select"
+# single select
+class SingleSelectData(ColumnData):
     options: List[SelectOption] = None
 
 
-# MULTIPLE SELECT
-class MultipleSelect(SeaTableType):
-    _type = "multiple-select"
+# multiple select
+class MultipleSelectData(ColumnData):
     options: List[SelectOption] = None
 
 
-# [IMAGE]
-class Image(SeaTableType):
-    _type = "image"
+################################################################
+# image
+################################################################
+class ImageData(ColumnData):
+    pass
 
 
-# [FILE]
-class File(SeaTableType):
-    _type = "file"
+################################################################
+# file
+################################################################
+class FileData(ColumnData):
+    pass
 
 
-# [EMAIL]
-class Email(SeaTableType):
-    _type = "email"
+################################################################
+# email
+################################################################
+class EmailData(ColumnData):
+    pass
 
 
-# [URL]
-class Url(SeaTableType):
-    _type = "url"
+################################################################
+# url
+################################################################
+class UrlData(ColumnData):
+    pass
 
 
-# [CHECKBOX]
-class Checkbox(SeaTableType):
-    _type = "checkbox"
+################################################################
+# checkbox
+################################################################
+class CheckboxData(ColumnData):
+    pass
 
 
-# [Rate]
-class Rate(SeaTableType):
-    _type = "rate"
-    rate_max_number: str = 5
+################################################################
+# rate
+################################################################
+class RateStyleType(str, Enum):
+    dtable_icon_rate: str = "dtable-icon-rate"
+    dtable_icon_like: str = "dtable-icon-like"
+    dtable_icon_praise: str = "dtable-icon-praise"
+    dtable_icon_flag: str = "dtable-icon-flag"
+
+
+class RateData(ColumnData):
+    rate_max_number: int = 5
     rate_style_color: str = "#FF8000"
-    rate_style_type: str = "dtable-icon-rate"
+    rate_style_type: RateStyleType = "dtable-icon-rate"
 
 
-# [FORMULA]
-class Formula(SeaTableType):
-    _type = "formula"
-    formula: str = None
+################################################################
+# formula
+################################################################
+class FormulaData(ColumnData):
+    formula: str
 
 
-# [LINK COLUMN] - NOT WORKING!
-class Link(SeaTableType):
-    _type = "link"
+################################################################
+# link-column
+################################################################
+class LinkData(ColumnData):
     table: str
     other_table: str
 
 
-# [LINK FORMULA COLUMN] - NOT WORKING!
-class LinkFomula(SeaTableType):
-    _type = "link-fomula"
-    # [TBD]
+################################################################
+# link-formula
+################################################################
+# formula
+class Formula(str, Enum):
+    count_links: str = "count_links"
+    lookup: str = "lookup"
+    rollup: str = "rollup"
+    findmax: str = "findmax"
+    findmin: str = "findmin"
 
 
-# [CRAETOR]
-class Creator(SeaTableType):
-    _type = "creator"
+class LinkFomulaData(ColumnData):
+    formula: Formula
+    link_column: str
+    level1_linked_column: str = None
+    summary_column: str = None
+    summary_method: str = None
+    searched_column: str = None
+    comparison_column: str = None
 
 
-# [CREATION TIME]
-class CreationTime(SeaTableType):
-    _type = "ctime"
+################################################################
+# creator
+################################################################
+class CreatorData(ColumnData):
+    pass
 
 
-# [LAST MODIFIER]
-class LastModifier(SeaTableType):
-    _type = "last-modifier"
+################################################################
+# ctime
+################################################################
+class CtimeData(ColumnData):
+    pass
 
 
-# [LAST MODIFICATION TIME]
-class LastModificationTime(SeaTableType):
-    _type = "mtime"
+################################################################
+# last-modifier
+################################################################
+class LastModifierData(ColumnData):
+    pass
 
 
-# [AUTO NUMBER]
-class AutoNumber(SeaTableType):
-    _type = "auto-number"
-    format: str = "ID-000000"
+################################################################
+# mtime
+################################################################
+class MtimeData(ColumnData):
+    pass
 
 
-# [BUTTON]
-# button type
+################################################################
+# auto-number
+################################################################
+class AutoNumberData(ColumnData):
+    format: str = "0000"
+
+
+################################################################
+# button
+################################################################
 class ButtonActionType(str, Enum):
-    run_script: str = "run_script"
-    send_email: str = "send_email"
-    copy_row_to_another_table: str = "copy_row_to_another_table"
+    send_notification: str = "send_notification"
     modify_row: str = "modify_row"
+    copy_row_to_another_table: str = "copy_row_to_another_table"
     open_url: str = "open_url"
+    send_email: str = "send_email"
+    run_script: str = "run_script"
+
+
+class NotificationUser(BaseModel):
+    value: str
+
+    class Config:
+        extra = Extra.forbid
+
+
+class SelectedColumn(BaseModel):
+    key: str
+    value: str
+
+    class Config:
+        extra = Extra.forbid
 
 
 class ButtonAction(BaseModel):
     action_type: ButtonActionType
-    enable_condition_execution: bool = False
+    filters: List[dict] = None
+    filter_conjunction: str = "And"
+    current_table_id: str
+    # notification
+    msg: str = None
+    to_users: List[NotificationUser] = None
+    user_col_key: str = None
+    # modify row
+    selected_columns: List[SelectedColumn] = None
+    # copy_row_to_another_table
+    table_id: str = None
+    # open_url
+    url_address: str = None
 
 
-class Filter(BaseModel):
-    column_key: str
-    filter_predicate: str = "is_not_empty"
-    filter_term: str = ""
+# button column data
+class ButtonData(ColumnData):
+    button_name: str = "noname"
+    button_color: str = "lightgray"
+    button_action_list: List[ButtonAction]
 
 
-class OpenUrl(ButtonAction):
-    action_type: ButtonActionType = Field("open_url", const=True)
-    url_address: str
-    enable_condition_execution: bool = False
-    filters: List[Filter] = None
-
-
-# Button
-class Button(SeaTableType):
-    _type = "button"
-    button_name: str
-    button_color: str
-    button_action_list: List[ButtonAction] = None
+################################################################
+# validator
+################################################################
+COLUMN_DATA = {
+    "text": TextData,
+    "long-text": LongTextData,
+    "number": NumberData,
+    "collaborator": CollaboratorData,
+    "date": DateData,
+    "duration": DurationData,
+    "single-select": SingleSelectData,
+    "multiple-select": MultipleSelectData,
+    "image": ImageData,
+    "file": FileData,
+    "email": EmailData,
+    "url": UrlData,
+    "checkbox": CheckboxData,
+    "rate": RateData,
+    "formula": FormulaData,
+    "link": LinkData,
+    "link-formula": LinkFomulaData,
+    "creator": CreatorData,
+    "ctime": CtimeData,
+    "last-modifier": LastModifierData,
+    "mtime": MtimeData,
+    "auto-number": AutoNumberData,
+    "button": ButtonData,  # button -> file
+}

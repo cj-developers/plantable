@@ -956,8 +956,9 @@ class BaseClient(HttpClient):
 
         # insert columns
         for column in columns:
-            _ = await self.insert_column(table_name=table_name, column=column)
-        return
+            _ = await self.insert_column(table_name=table_name, **column)
+
+        return True
 
     # Rename Table
     async def rename_table(self, table_name: str, new_table_name: str):
@@ -975,11 +976,13 @@ class BaseClient(HttpClient):
     async def delete_table(self, table_name: str):
         METHOD = "DELETE"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/tables/"
+        ITEM = "success"
 
         json = {"table_name": table_name}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+            response = await self.request(session=session, method=METHOD, url=URL, json=json)
+            results = response[ITEM]
 
         return results
 
@@ -1124,7 +1127,6 @@ class BaseClient(HttpClient):
             column_data=column_data,
             anchor_column=anchor_column,
         )
-        print(json)
 
         async with self.session_maker(token=self.base_token.access_token) as session:
             results = await self.request(session=session, method=METHOD, url=URL, json=json)
@@ -1242,9 +1244,10 @@ class BaseClient(HttpClient):
         json = {"table_name": table_name, "column": column_name}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, json=json)
+            response = await self.request(session=session, method=METHOD, url=URL, json=json)
+            results = response[ITEM]
 
-        return results.get(ITEM)
+        return results
 
     # (custom) Get Column
     async def get_column(self, table_name: str, column_name: str):

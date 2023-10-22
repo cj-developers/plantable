@@ -2,8 +2,8 @@ import logging
 from datetime import date, datetime
 from typing import List
 
-from ...model import Table, User, Column
 from ...const import DT_FMT, TZ
+from ...model import Column, Table, User
 from .deserializer import ColumnDeserializer, Deserializer
 
 logger = logging.getLogger(__name__)

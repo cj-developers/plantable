@@ -4,7 +4,6 @@ import click
 import uvicorn
 from click_loglevel import LogLevel
 
-
 logger = logging.getLogger(__file__)
 
 

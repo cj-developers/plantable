@@ -409,6 +409,9 @@ class AdminClient(AccountClient):
 
     # List Group Bases
     async def list_group_bases(self, name_or_id: Union[str, int], model: BaseModel = Base):
+        """
+        [NOTE] id input is cheaper. use id when you know it.
+        """
         if isinstance(name_or_id, str):
             group = await self.get_group(name_or_id=name_or_id)
             name_or_id = group.id

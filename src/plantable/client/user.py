@@ -8,26 +8,8 @@ import orjson
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ..model import (
-    DTABLE_ICON_COLORS,
-    DTABLE_ICON_LIST,
-    AccountInfo,
-    Activity,
-    Admin,
-    ApiToken,
-    Base,
-    BaseInfo,
-    BaseToken,
-    Column,
-    File,
-    SharedView,
-    Table,
-    Team,
-    User,
-    UserInfo,
-    Webhook,
-    Workspace,
-)
+from ..model import (DTABLE_ICON_COLORS, DTABLE_ICON_LIST, AccountInfo, Activity, Admin, ApiToken, Base, BaseInfo,
+                     BaseToken, Column, File, SharedView, Table, Team, User, UserInfo, Webhook, Workspace)
 from .account import AccountClient
 from .core import parse_name
 

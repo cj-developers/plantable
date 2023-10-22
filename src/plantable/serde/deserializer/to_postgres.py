@@ -3,17 +3,7 @@ from datetime import date, datetime
 from typing import Any, List, Union
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import (
-    ARRAY,
-    BOOLEAN,
-    DATE,
-    FLOAT,
-    INTEGER,
-    SMALLINT,
-    TEXT,
-    TIMESTAMP,
-    VARCHAR,
-)
+from sqlalchemy.dialects.postgresql import ARRAY, BOOLEAN, DATE, FLOAT, INTEGER, SMALLINT, TEXT, TIMESTAMP, VARCHAR
 
 from plantable.const import DT_FMT, TZ
 

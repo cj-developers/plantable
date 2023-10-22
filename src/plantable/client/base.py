@@ -14,22 +14,12 @@ from pypika.dialects import QueryBuilder
 from tabulate import tabulate
 
 from ..const import DT_FMT, TZ
-from ..model import (
-    BaseActivity,
-    BaseToken,
-    Column,
-    Metadata,
-    SelectOption,
-    Table,
-    UserInfo,
-    View,
-)
+from ..model import BaseActivity, BaseToken, Column, Metadata, SelectOption, Table, UserInfo, View
 from ..model.column import COLUMN_DATA
-from ..serde.deserializer import Deserializer, ToPostgres, ToPython
-from ..serde.serializer import FromPython
+from ..serde import Deserializer, FromPython, ToPython
+from ..utils import divide_chunks, parse_str_datetime
 from .conf import SEATABLE_URL
 from .core import TABULATE_CONF, HttpClient
-from ..utils import parse_str_datetime, divide_chunks
 
 logger = logging.getLogger()
 
@@ -1219,7 +1209,7 @@ class BaseClient(HttpClient):
         return results
 
     # Freeze Column
-    async def freeze_column(self, table_name: str, column_name: str, frozen: bool):
+    async def freeze_column(self, table_name: str, column_name: str, frozen: bool = True):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/columns/"
 
@@ -1442,7 +1432,11 @@ class BaseClient(HttpClient):
         if column_type in ["button"]:
             table = await self.get_table(table_name=table_name)
             table_id = table.id
+
             for button_action in column_data["button_action_list"]:
+                # update current_table_id
+                button_action.update({"current_table_id": table_id})
+
                 # [NOTE] contact_email or name to email
                 #  - input: {to_users: ["some_user@mail.com", "some_user_name"]}
                 #  - output: {to_users: [{"value": "jlkajdfald@auth.local"}, {"value": "kajsldfasdf@auth.local"}]}
@@ -1457,6 +1451,7 @@ class BaseClient(HttpClient):
                     button_action.update({"to_users": to_user_ids})
                 else:
                     button_action.update({"to_users": []})
+
                 # [NOTE] user_column to user_col_key
                 #  - input: {to_users: ["some_user@mail.com", "some_user_name"]}
                 #  - output: {to_users: [{"value": "jlkajdfald@auth.local"}, {"value": "kajsldfasdf@auth.local"}]}
@@ -1469,7 +1464,7 @@ class BaseClient(HttpClient):
                     else:
                         _msg = f"user_column '{user_column}' is not in table '{table_name}'!"
                         raise KeyError(_msg)
-                    button_action.update({"current_table_id": table_id, "user_col_key": user_col_key})
+                    button_action.update({"user_col_key": user_col_key})
             print(column_data)
 
         corrected_column_data = COLUMN_DATA[column_type](**column_data)

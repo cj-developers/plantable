@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List
 
-from pydantic import Extra, Field, BaseModel
+from pydantic import BaseModel, Extra, Field
 
 
 # ColumnData

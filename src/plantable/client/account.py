@@ -9,19 +9,8 @@ import requests
 from pydantic import BaseModel
 from tabulate import tabulate
 
-from ..model import (
-    DTABLE_ICON_COLORS,
-    DTABLE_ICON_LIST,
-    Admin,
-    ApiToken,
-    Base,
-    BaseToken,
-    Column,
-    Table,
-    Team,
-    User,
-    Webhook,
-)
+from ..model import (DTABLE_ICON_COLORS, DTABLE_ICON_LIST, Admin, ApiToken, Base, BaseToken, Column, Table, Team, User,
+                     Webhook)
 from .base import BaseClient
 from .conf import SEATABLE_ACCOUNT_TOKEN, SEATABLE_PASSWORD, SEATABLE_URL, SEATABLE_USERNAME
 from .core import TABULATE_CONF, HttpClient

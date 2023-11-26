@@ -526,7 +526,6 @@ class BaseClient(HttpClient):
         desc: bool = False,
         offset: int = 0,
         limit: int = None,
-        mtime: str = "_mtime",
     ):
         MAX_LIMIT = 10000
         OFFSET = 0
@@ -542,14 +541,23 @@ class BaseClient(HttpClient):
 
         # generate query
         q = PikaQuery.from_(table).select(*select)
-        if modified_before:
-            if isinstance(modified_before, datetime):
-                modified_before = modified_before.isoformat(timespec="milliseconds")
-            q = q.where(table[mtime] < modified_before)
-        if modified_after:
-            if isinstance(modified_after, datetime):
-                modified_after = modified_after.isoformat(timespec="milliseconds")
-            q = q.where(table[mtime] > modified_after)
+
+        if modified_before or modified_after:
+            last_modified = "_mtime"
+            tbl = await self.get_table(table_name=table_name)
+            for c in tbl.columns:
+                if c.key == "_mtime":
+                    last_modified = c.name
+                    break
+            if modified_after:
+                if isinstance(modified_after, datetime):
+                    modified_after = modified_after.isoformat(timespec="milliseconds")
+                q = q.where(table[last_modified] > modified_after)
+            if modified_before:
+                if isinstance(modified_before, datetime):
+                    modified_before = modified_before.isoformat(timespec="milliseconds")
+                q = q.where(table[last_modified] < modified_before)
+
         if order_by:
             q = q.orderby(order_by, order=Order.desc if desc else Order.asc)
 
@@ -580,7 +588,6 @@ class BaseClient(HttpClient):
         desc: bool = False,
         offset: int = 0,
         limit: int = None,
-        mtime: str = "_mtime",
         Deserializer: Deserializer = ToPython,
     ) -> dict:
         # list rows
@@ -593,7 +600,6 @@ class BaseClient(HttpClient):
             desc=desc,
             offset=offset,
             limit=limit,
-            mtime=mtime,
         )
 
         if not Deserializer:
@@ -627,7 +633,6 @@ class BaseClient(HttpClient):
         desc: bool = False,
         offset: int = 0,
         limit: int = None,
-        mtime: str = "_mtime",
         Deserializer: Deserializer = ToPython,
     ) -> List[dict]:
         # list rows
@@ -640,7 +645,6 @@ class BaseClient(HttpClient):
             desc=desc,
             offset=offset,
             limit=limit,
-            mtime=mtime,
         )
 
         # deserializer
@@ -667,7 +671,6 @@ class BaseClient(HttpClient):
         modified_after: str = None,
         offset: int = 0,
         limit: int = None,
-        mtime: str = "_mtime",
     ):
         rows = await self.read_table(
             table_name=table_name,
@@ -676,7 +679,6 @@ class BaseClient(HttpClient):
             modified_after=modified_after,
             offset=offset,
             limit=limit,
-            mtime=mtime,
             Deserializer=ToPython,
         )
 
@@ -1013,6 +1015,11 @@ class BaseClient(HttpClient):
             results = [model(**x) for x in results]
 
         return results
+
+    # Custom
+    async def list_archive_views(self, table_name: str):
+        views = await self.list_views(table_name=table_name)
+        return [view for view in views if view.type == "archive"]
 
     # Create View
     async def create_view(
@@ -1377,13 +1384,34 @@ class BaseClient(HttpClient):
         # rename table in a second step
         METHOD = "GET"
         URL = f"/api/v2.1/dtables/{self.base_token.dtable_uuid}/delete-operation-logs/"
+        ITEM = "delete_operation_logs"
 
         params = {"op_type": op_type, "page": page, "per_page": per_page}
 
         async with self.session_maker(token=self.base_token.access_token) as session:
-            results = await self.request(session=session, method=METHOD, url=URL, **params)
+            response = await self.request(session=session, method=METHOD, url=URL, **params)
+            results = response[ITEM]
 
         return results
+
+    # (custim) List Delete Operation Logs After
+    async def list_delete_operation_logs_since(self, op_type: str, op_time: Union[datetime, str], per_page: int = 100):
+        # correct op_time
+        op_time = datetime.fromisoformat(op_time) if isinstance(op_time, str) else op_time
+
+        delete_logs = list()
+        page = 1
+        while True:
+            logs = await self.list_delete_operation_logs(op_type=op_type, page=page, per_page=per_page)
+            if not logs:
+                break
+            for log in logs:
+                if datetime.fromisoformat(log["op_time"]) < op_time:
+                    break
+                delete_logs.append(log)
+            page += 1
+
+        return delete_logs
 
     # List Delete Rows
     async def list_delete_rows(self):

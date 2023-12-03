@@ -65,6 +65,7 @@ class HttpClient:
 
         async with session.request(**self._request) as response:
             response.raise_for_status()
+
             if self.debug:
                 print(response.headers)
                 return await response.content()

@@ -215,7 +215,7 @@ class BuiltInBaseClient(HttpClient):
 
     # Add Row
     async def add_row(
-        self, table_name: str, row: dict, anchor_row_id: str = None, row_insert_position: str = "insert_below"
+        self, table_name: str, row: dict = {}, anchor_row_id: str = None, row_insert_position: str = "insert_below"
     ):
         # insert_below or insert_above
         METHOD = "POST"
@@ -296,9 +296,6 @@ class BuiltInBaseClient(HttpClient):
         table = await self.get_table(table_name=table_name)
         serializer = FromPython(table=table)
 
-        # prep link columns
-        link_columns = self.prep_link_columns(table=table)
-
         # add select options if not exists
         _ = await self.add_select_options_if_not_exists(table_name=table_name, rows=rows)
 
@@ -314,10 +311,6 @@ class BuiltInBaseClient(HttpClient):
         results = {"inserted_row_count": 0}
         for r in list_results:
             results["inserted_row_count"] += r["inserted_row_count"]
-
-        # update link
-        if link_columns:
-            pass
 
         return results
 
@@ -351,17 +344,11 @@ class BuiltInBaseClient(HttpClient):
             coros = [self.request(session=session, method=METHOD, url=URL, json=json) for json in list_json]
             list_results = await asyncio.gather(*coros)
 
-        results = None
-        for r in list_results:
-            if isinstance(r, Exception):
-                raise r
-            if not r["success"]:
-                results = r
-                break
-        else:
-            results = r
+        for results in list_results:
+            if isinstance(results, Exception):
+                raise results
 
-        return results
+        return {"updated_row_count": len(updates)}
 
     # Delete Rows
     async def delete_rows(self, table_name: str, row_ids: List[str]):
@@ -403,19 +390,18 @@ class BuiltInBaseClient(HttpClient):
     # LINKS
     ################################################################
     # Create Row Link
-    # [NOTE] Not Working!
     async def create_row_link(
-        self, table_name: str, table_row_id: str, other_table_name: str, other_table_row_id: str, link_id: str
+        self, table_name: str, other_table_name: str, link_id: str, row_id: str, other_row_id: str
     ):
         METHOD = "POST"
-        URL = f"/dtable-db/api/v1/linked-records/{self.base_token.dtable_uuid}"
+        URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/links/"
 
         json = {
-            "table_id": table_name,
+            "table_name": table_name,
             "other_table_name": other_table_name,
             "link_id": link_id,
-            "table_row_id": table_row_id,
-            "other_table_row_id": other_table_row_id,
+            "table_row_id": row_id,
+            "other_table_row_id": other_row_id,
         }
 
         async with self.session_maker() as session:
@@ -446,11 +432,10 @@ class BuiltInBaseClient(HttpClient):
         return results
 
     # Create Row Links Batch (m:n)
-    # [TBD]
     async def create_row_links_batch(
         self,
-        table_name: str,
-        other_table_name: str,
+        table_id: str,
+        other_table_id: str,
         link_id: str,
         row_id_list: List[str],
         other_rows_ids_map: List[str],
@@ -458,13 +443,9 @@ class BuiltInBaseClient(HttpClient):
         METHOD = "PUT"
         URL = f"/dtable-server/api/v1/dtables/{self.base_token.dtable_uuid}/batch-update-links/"
 
-        table, other_table = await asyncio.gather(
-            self.get_table(table_name=table_name), self.get_table(other_table_name=other_table_name)
-        )
-
         json = {
-            "table_id": table.id,
-            "other_table_id": other_table.id,
+            "table_id": table_id,
+            "other_table_id": other_table_id,
             "link_id": link_id,
             "row_id_list": row_id_list,
             "other_rows_ids_map": other_rows_ids_map,
@@ -476,14 +457,12 @@ class BuiltInBaseClient(HttpClient):
         return results
 
     # List Row Links
-    # [NOTE] Not Working!
-    async def list_row_links(self, table_name: str, link_column: str, rows: list = None):
+    # [NOTE] Offset 처리해야 함 - limit 어디까지 가능한지 모름, default가 무한인지도 모름
+    async def list_row_links(self, table_id: str, link_column: str, row_ids: List[str]):
         METHOD = "POST"
         URL = f"/dtable-db/api/v1/linked-records/{self.base_token.dtable_uuid}"
 
-        table = await self.get_table(table_name=table_name)
-        json = {"table_id": table.id, "link_column": link_column, "rows": rows}
-        print(json)
+        json = {"table_id": table_id, "link_column": link_column, "rows": [{"row_id": row_id} for row_id in row_ids]}
         async with self.session_maker() as session:
             results = await self.request(session=session, method=METHOD, url=URL, json=json)
 

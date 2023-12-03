@@ -4,7 +4,7 @@ from datetime import datetime
 from functools import partial
 from typing import Any, Callable, Dict, List, Union
 
-from ...model import Column, Table, User
+from ...model import Column, Table, User, Metadata
 from ...utils import parse_str_datetime
 
 logger = logging.getLogger(__name__)
@@ -38,21 +38,21 @@ class ColumnDeserializer:
         name: str,
         seatable_type: str,
         data: dict = None,
-        users: List[dict] = None,
-        link_column: Column = None,
+        metadata: Column = None,
+        collaborator_map: dict = None,
     ):
         self.name = name
         self.seatable_type = seatable_type
         self.data = data
-        self.users = users
-        self.link_column = link_column
+        self.metadata = metadata
+        self.collaborator_map = collaborator_map
 
     def __call__(self, x):
         if not x:
             return None
         try:
             return self.convert(x)
-        except Exception as ex:
+        except:
             _msg = f"deserialize failed: {self.seatable_type}({x})."
             raise DeserializeError(_msg)
 
@@ -62,21 +62,66 @@ class ColumnDeserializer:
     def convert(self, x):
         raise NotImplementedError
 
+    def get_table(self, table_name: str):
+        for table in self.metadata.tables:
+            if table.name == table_name:
+                return table
+        else:
+            _msg = f"table '{table_name}' not exists!"
+            raise KeyError(_msg)
+
+    def get_table_by_id(self, table_id: str):
+        for table in self.metadata.tables:
+            if table.id == table_id:
+                return table
+        else:
+            _msg = f"table id '{table_id}' not exists!"
+            raise KeyError(_msg)
+
+    def get_column_by_id(self, table_id: str, column_id: str):
+        table = self.get_table_by_id(table_id=table_id)
+        for column in table.columns:
+            if column.key == column_id:
+                return column
+        else:
+            _msg = f"no column (id: {column_id}) in table (id: {table_id})."
+            raise KeyError(_msg)
+
 
 class Deserializer:
     def __init__(
         self,
-        table: Table,
-        group_name: str = None,
+        metadata: Metadata,
+        table_name: str,
         base_name: str = None,
+        group_name: str = None,
         table_name_sep: str = "__",
-        users: List[User] = None,
+        collaborators: List[User] = None,
     ):
-        self.table = table
-        self.group_name = group_name
+        self.metadata = metadata
+        self.table_name = table_name
         self.base_name = base_name
+        self.group_name = group_name
         self.table_name_sep = table_name_sep
-        self.users = {user.email: f"{user.name} ({user.contact_email})" for user in users} if users else None
+        self.collaborators = collaborators
+
+        # get table
+        for table in self.metadata.tables:
+            if table.name == table_name:
+                break
+        else:
+            _msg = f"table '{table_name}' not exists!"
+            raise KeyError(_msg)
+        self.table = table
+
+        # get collaborator_map
+        if collaborators:
+            self.collaborator_map = {
+                collaborator.email: f"{collaborator.name}({collaborator.contact_email})"
+                for collaborator in collaborators
+            }
+        else:
+            self.collaborator_map = None
 
         # prefix
         prefix = []
@@ -107,6 +152,9 @@ class Deserializer:
         return self.table.name
 
     def init_columns(self):
+        LINK_REQUIRED = ["link", "link-formula"]
+        COLLABORATOR_REQUIRED = ["user", "collaborator", "creator", "last-modifier"]
+
         column_keys = [c.key for c in self.table.columns]
         columns = [
             *[c.dict() for c in self.table.columns],
@@ -117,8 +165,14 @@ class Deserializer:
         for c in columns:
             # update column deserializer
             try:
+                metadata = self.metadata if c["type"] in LINK_REQUIRED else None
+                collaborator_map = self.collaborator_map if c["type"] in COLLABORATOR_REQUIRED else None
                 deseriailizer = self.Deserializer[c["type"]](
-                    name=c["name"], seatable_type=c["type"], data=c["data"], users=self.users
+                    name=c["name"],
+                    seatable_type=c["type"],
+                    data=c["data"],
+                    metadata=metadata,
+                    collaborator_map=collaborator_map,
                 )
             except Exception:
                 _msg = "create column deserializer failed - name: '{name}', seatable_type: '{type}', data: '{data}'.".format(
@@ -138,7 +192,10 @@ class Deserializer:
                     self.columns.update(
                         {
                             "_mtime": self.Deserializer[c["type"]](
-                                name=c["name"], seatable_type=c["type"], data=c["data"], users=self.users
+                                name=c["name"],
+                                seatable_type=c["type"],
+                                data=c["data"],
+                                collaborators=self.collaborator_map,
                             )
                         }
                     )

@@ -348,7 +348,7 @@ class File(_Model):
 
 
 class BaseActivity(_Model):
-    author: str
+    author: str = None
     app: str = None
     op_id: int
     op_time: datetime

@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, BOOLEAN, DATE, FLOAT, INTEGER,
 
 from plantable.const import DT_FMT, TZ
 
-from ...model import Column, Table, User
+from ...model import Column, Table, User, Metadata
 from .deserializer import ColumnDeserializer, Deserializer
 
 logger = logging.getLogger(__name__)
@@ -86,10 +86,12 @@ class PostgresNumber(ColumnDeserializer):
         name: str,
         seatable_type: str,
         data: dict = None,
-        users: List[dict] = None,
-        link_column: Column = None,
+        metadata: Metadata = None,
+        collaborator_map: dict = None,
     ):
-        super().__init__(name=name, seatable_type=seatable_type, data=data, users=users, link_column=link_column)
+        super().__init__(
+            name=name, seatable_type=seatable_type, data=data, metadata=metadata, collaborator_map=collaborator_map
+        )
         if self.data.get("enable_precision"):
             self.sub_deserializer = _PostgresInteger(name=self.name, seatable_type=self.seatable_type, data=self.data)
         else:
@@ -130,10 +132,12 @@ class PostgresDate(ColumnDeserializer):
         name: str,
         seatable_type: str,
         data: dict = None,
-        users: List[dict] = None,
-        link_column: Column = None,
+        metadata: Metadata = None,
+        collaborator_map: dict = None,
     ):
-        super().__init__(name=name, seatable_type=seatable_type, data=data, users=users, link_column=link_column)
+        super().__init__(
+            name=name, seatable_type=seatable_type, data=data, metadata=metadata, collaborator_map=collaborator_map
+        )
         if self.data and self.data["format"] == "YYYY-MM-DD":
             self.sub_deserializer = _PostgresDate(name=self.name, seatable_type=self.seatable_type, data=self.data)
         else:
@@ -176,19 +180,19 @@ class PostgresUser(ColumnDeserializer):
         return sa.Column(self.name, VARCHAR(255), nullable=True)
 
     def convert(self, x):
-        if not self.users:
+        if not self.collaborator_map:
             return x
-        return self.users[x] if x in self.users else x
+        return self.collaborator_map[x] if x in self.collaborator_map else x
 
 
-class PostgresListUsers(ColumnDeserializer):
+class PostgresListcollaborator_map(ColumnDeserializer):
     def schema(self):
         return sa.Column(self.name, ARRAY(VARCHAR(255)), nullable=True)
 
     def convert(self, x):
-        if not self.users:
+        if not self.collaborator_map:
             return x
-        return [self.users[_x] if _x in self.users else _x for _x in x]
+        return [self.collaborator_map[_x] if _x in self.collaborator_map else _x for _x in x]
 
 
 class PostgresFile(ColumnDeserializer):
@@ -234,7 +238,7 @@ DESERIALIZER = {
     "single-select": PostgresSingleSelect,
     "multiple-select": PostgresText,
     "user": PostgresUser,
-    "collaborator": PostgresListUsers,
+    "collaborator": PostgresListcollaborator_map,
     "creator": PostgresUser,
     "last-modifier": PostgresUser,
     "file": PostgresFile,
@@ -249,10 +253,12 @@ class PostgresFormula(ColumnDeserializer):
         name: str,
         seatable_type: str,
         data: dict = None,
-        users: List[dict] = None,
-        link_column: Column = None,
+        metadata: Metadata = None,
+        collaborator_map: dict = None,
     ):
-        super().__init__(name=name, seatable_type=seatable_type, data=data, users=users, link_column=link_column)
+        super().__init__(
+            name=name, seatable_type=seatable_type, data=data, metadata=metadata, collaborator_map=collaborator_map
+        )
         self.sub_deserializer = DESERIALIZER[self.data["result_type"]](
             name=self.name, seatable_type=self.data["result_type"], data=dict()
         )
@@ -272,10 +278,12 @@ class PostgresLink(ColumnDeserializer):
         name: str,
         seatable_type: str,
         data: dict = None,
-        users: List[dict] = None,
-        link_column: Column = None,
+        metadata: Metadata = None,
+        collaborator_map: dict = None,
     ):
-        super().__init__(name=name, seatable_type=seatable_type, data=data, users=users, link_column=link_column)
+        super().__init__(
+            name=name, seatable_type=seatable_type, data=data, metadata=metadata, collaborator_map=collaborator_map
+        )
 
         self.sub_deserializer = DESERIALIZER[self.data["array_type"]](
             name=self.name, seatable_type=self.data["array_type"], data=self.data["array_data"]
@@ -300,10 +308,12 @@ class PostgresLinkFormula(ColumnDeserializer):
         name: str,
         seatable_type: str,
         data: dict = None,
-        users: List[dict] = None,
-        link_column: Column = None,
+        metadata: Metadata = None,
+        collaborator_map: dict = None,
     ):
-        super().__init__(name=name, seatable_type=seatable_type, data=data, users=users, link_column=link_column)
+        super().__init__(
+            name=name, seatable_type=seatable_type, data=data, metadata=metadata, collaborator_map=collaborator_map
+        )
 
         self.sub_deserializer = DESERIALIZER[self.data["array_type"]](
             name=self.name, seatable_type=self.data["array_type"], data=self.data["array_data"]

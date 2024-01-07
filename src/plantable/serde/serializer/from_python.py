@@ -32,7 +32,7 @@ class FromPython:
         }
         row = {k: v for k, v in row.items() if v != "__ignore__"}
         if not self.overwrite_none:
-            row = {k: v for k, v in row.items() if v}
+            row = {k: v for k, v in row.items() if v is not None}
         return row
 
     @staticmethod

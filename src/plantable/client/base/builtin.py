@@ -43,8 +43,8 @@ class BuiltInBaseClient(HttpClient):
 
         super().__init__(seatable_url=seatable_url.rstrip("/"))
 
-        self.base_token = base_token
         self.api_token = api_token
+        self.base_token = base_token
         self.access_token_refresh_sec = access_token_refresh_sec
 
         if api_token:
@@ -79,9 +79,12 @@ class BuiltInBaseClient(HttpClient):
 
     # override
     def session_maker(self):
-        headers = self.headers.copy()
-        if (datetime.now() - self.base_token.generated_at).seconds > self.access_token_refresh_sec:
+        token_uptime = (datetime.now() - self.base_token.generated_at).seconds
+        if token_uptime > self.access_token_refresh_sec:
             self.update_base_token()
+            _msg = f"access token for workspace '{self.workspace_id}' is updated after {token_uptime} seconds uptime."
+            logger.warning(_msg)
+        headers = self.headers.copy()
         headers.update({"authorization": "Bearer {}".format(self.base_token.access_token)})
         return aiohttp.ClientSession(base_url=self.seatable_url, headers=headers)
 

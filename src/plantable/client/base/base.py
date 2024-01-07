@@ -157,7 +157,9 @@ class BaseClient(BuiltInBaseClient):
     ################################################################
     # (OVERRIDE) Append Rows
     # [NOTE] Rate Limit 조정하는 로직 필요, 지금은 금방 Rate Limit 걸릴 것 같음.
-    async def append_rows(self, table_name: str, rows: List[dict], refresh: bool = True):
+    async def append_rows(
+        self, table_name: str, rows: List[dict], add_link_if_not_exists: bool = False, refresh: bool = True
+    ):
         link_columns = await self.list_link_columns(table_name=table_name, refresh=refresh)
         link_column_names = [x.name for x in link_columns]
 
@@ -188,7 +190,10 @@ class BaseClient(BuiltInBaseClient):
                 continue
             for column_name, display_values in links.items():
                 kwargs = await self._prep_create_row_links(
-                    table_name=table_name, column_name=column_name, display_values=display_values
+                    table_name=table_name,
+                    column_name=column_name,
+                    display_values=display_values,
+                    add_link_if_not_exists=add_link_if_not_exists,
                 )
                 coros_create_row_links.append(self.create_row_links(row_id=result["_id"], **kwargs))
         create_links_results = await asyncio.gather(*coros_create_row_links)
@@ -199,7 +204,9 @@ class BaseClient(BuiltInBaseClient):
         return {"inserted_rows": len(add_rows_results)}
 
     # (OVERRIDE) Update Rows
-    async def update_rows(self, table_name: str, updates: List[dict], refresh: bool = True):
+    async def update_rows(
+        self, table_name: str, updates: List[dict], add_link_if_not_exists: bool = False, refresh: bool = True
+    ):
         link_columns = await self.list_link_columns(table_name=table_name, refresh=refresh)
         link_column_names = [x.name for x in link_columns]
 
@@ -209,7 +216,10 @@ class BaseClient(BuiltInBaseClient):
                 if column_name in up["row"]:
                     display_values = up["row"].pop(column_name)
                     kwargs = await self._prep_create_row_links(
-                        table_name=table_name, column_name=column_name, display_values=display_values
+                        table_name=table_name,
+                        column_name=column_name,
+                        display_values=display_values,
+                        add_link_if_not_exists=add_link_if_not_exists,
                     )
                     coros_create_row_links.append(self.create_row_links(row_id=up["row_id"], **kwargs))
 
@@ -242,7 +252,9 @@ class BaseClient(BuiltInBaseClient):
 
     # Upsert Rows - 궁극의 메쏘드!
     # [NOTE] 첫 Column을 Unique하게 사용하기만 한다면, 이 메쏘드 하나만 써서 Append, Update 해결 가능!
-    async def upsert_rows(self, table_name: str, rows: List[dict], key_column: str = None):
+    async def upsert_rows(
+        self, table_name: str, rows: List[dict], key_column: str = None, add_link_if_not_exists: bool = False
+    ):
         # correct input
         rows = rows if isinstance(rows, list) else [rows]
 
@@ -267,10 +279,14 @@ class BaseClient(BuiltInBaseClient):
                 updates.append({"row_id": id_map[key], "row": row})
 
         # 1. Key Column 값 존재하면 Update
-        update_coro = self.update_rows(table_name=table_name, updates=updates)
+        update_coro = self.update_rows(
+            table_name=table_name, updates=updates, add_link_if_not_exists=add_link_if_not_exists
+        )
 
         # 2. Key Column 값 존재하지 않으면 Append
-        append_coro = self.append_rows(table_name=table_name, rows=appends)
+        append_coro = self.append_rows(
+            table_name=table_name, rows=appends, add_link_if_not_exists=add_link_if_not_exists
+        )
 
         update_results, append_results = await asyncio.gather(update_coro, append_coro)
 
@@ -604,20 +620,29 @@ class BaseClient(BuiltInBaseClient):
 
         return link_columns
 
-    # Prep - Create Row Links
+    # Prep - Create Row Link
     async def _prep_create_row_link(
-        self, table_name: str, column_name: str, display_value: Union[str, int, float, datetime]
+        self,
+        table_name: str,
+        column_name: str,
+        display_value: Union[str, int, float, datetime],
+        add_link_if_not_exists: bool = False,
     ):
         prep = await self._prep_create_row_links(
-            table_name=table_name, column_name=column_name, display_values=[display_value]
+            table_name=table_name,
+            column_name=column_name,
+            display_values=[display_value],
+            add_link_if_not_exists=add_link_if_not_exists,
         )
 
         other_rows_ids = prep.pop("other_rows_ids")
         prep.update({"other_table_row_id": other_rows_ids[0]})
         return prep
 
-    # Prep - Create Row Link
-    async def _prep_create_row_links(self, table_name: str, column_name: str, display_values: list):
+    # Prep - Create Row Links
+    async def _prep_create_row_links(
+        self, table_name: str, column_name: str, display_values: list, add_link_if_not_exists: bool = False
+    ):
         # correct display values
         display_values = display_values if isinstance(display_values, list) else [display_values]
 
@@ -645,8 +670,12 @@ class BaseClient(BuiltInBaseClient):
         other_rows_ids = list()
         for display_value in display_values:
             if display_value not in row_id_map:
-                _msg = f"display value '{display_value}' not exists. please add this value into table '{_other_table.name}' first."
-                raise LinkValueNotExists(_msg)
+                if not add_link_if_not_exists:
+                    _msg = f"display value '{display_value}' not exists. please add this value into table '{_other_table.name}' first."
+                    raise LinkValueNotExists(_msg)
+                # add link
+                await self.add_row(table_name=_other_table.name, row={display_column.name: display_value})
+                row_id_map = await self.get_row_id_map(table_name=_other_table.name, key_column=display_column.name)
             other_rows_ids.append(row_id_map[display_value])
 
         return {

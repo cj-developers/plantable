@@ -2,9 +2,33 @@ import parse
 import pyarrow as pa
 
 from ...const import SYSTEM_FIELDS
-from ...model.column import (AutoNumber, Button, Checkbox, Collaborator, CreationTime, Creator, Date, Datetime,
-                             Duration, Email, File, Formula, Image, Integer, LastModificationTime, LastModifier, Link,
-                             LinkFomula, LongText, MultipleSelect, Number, Rate, SingleSelect, Text, Url)
+from ...model.column import (
+    AutoNumber,
+    Button,
+    Checkbox,
+    Collaborator,
+    CreationTime,
+    Creator,
+    Date,
+    Datetime,
+    Duration,
+    Email,
+    File,
+    Formula,
+    Image,
+    Integer,
+    LastModificationTime,
+    LastModifier,
+    Link,
+    LinkFomula,
+    LongText,
+    MultipleSelect,
+    Number,
+    Rate,
+    SingleSelect,
+    Text,
+    Url,
+)
 
 # Arrow to Seatable Schema
 SCHEMA_MAP = {

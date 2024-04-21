@@ -139,12 +139,10 @@ class Deserializer:
 
     @property
     @abstractmethod
-    def Deserializer(self):
-        ...
+    def Deserializer(self): ...
 
     @abstractmethod
-    def schema(self):
-        ...
+    def schema(self): ...
 
     def generate_table_name(self):
         if self.table_name_prefix:

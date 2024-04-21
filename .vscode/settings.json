@@ -10,6 +10,7 @@
         "--profile",
         "black"
     ],
+
     "autoDocstring.generateDocstringOnEnter": true,
     "autoDocstring.docstringFormat": "google",
 }

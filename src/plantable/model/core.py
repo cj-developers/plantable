@@ -241,7 +241,9 @@ class UserInfo(_Model):
     is_admin: bool = None  # true
     role: str = None  # "Owner
     permission: str = None  # "r" or "rw"
-    avatar_url: str = None  # "https://cloud.seatable.io/image-view/avatars/3/7/a0a57575a3ca0c78e8c5b6b0d0dbda/resized/80/cd7f6edd2c75afd3b7299917b3767c0f.png"
+    avatar_url: str = (
+        None  # "https://cloud.seatable.io/image-view/avatars/3/7/a0a57575a3ca0c78e8c5b6b0d0dbda/resized/80/cd7f6edd2c75afd3b7299917b3767c0f.png"
+    )
 
 
 class Base(_Model):

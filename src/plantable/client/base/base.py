@@ -210,6 +210,7 @@ class BaseClient(BuiltInBaseClient):
         link_columns = await self.list_link_columns(table_name=table_name, refresh=refresh)
         link_column_names = [x.name for x in link_columns]
 
+        # 순서에 따라 동작! asyncio.gather 금지!
         coros_create_row_links = list()
         for up in updates:
             for column_name in link_column_names:
@@ -253,7 +254,12 @@ class BaseClient(BuiltInBaseClient):
     # Upsert Rows - 궁극의 메쏘드!
     # [NOTE] 첫 Column을 Unique하게 사용하기만 한다면, 이 메쏘드 하나만 써서 Append, Update 해결 가능!
     async def upsert_rows(
-        self, table_name: str, rows: List[dict], key_column: str = None, add_link_if_not_exists: bool = False
+        self,
+        table_name: str,
+        rows: List[dict],
+        key_column: str = None,
+        add_link_if_not_exists: bool = False,
+        raise_key_not_unique_error: bool = True,
     ):
         # correct input
         rows = rows if isinstance(rows, list) else [rows]
@@ -267,7 +273,9 @@ class BaseClient(BuiltInBaseClient):
             key_column = first_column.name
 
         # get row id map
-        id_map = await self.get_row_id_map(table_name=table_name, key_column=key_column)
+        id_map = await self.get_row_id_map(
+            table_name=table_name, key_column=key_column, raise_key_not_unique_error=raise_key_not_unique_error
+        )
 
         # split updates & appends
         updates, appends = list(), list()
@@ -641,7 +649,12 @@ class BaseClient(BuiltInBaseClient):
 
     # Prep - Create Row Links
     async def _prep_create_row_links(
-        self, table_name: str, column_name: str, display_values: list, add_link_if_not_exists: bool = False
+        self,
+        table_name: str,
+        column_name: str,
+        display_values: list,
+        add_link_if_not_exists: bool = False,
+        raise_key_not_unique_error: bool = True,
     ):
         # correct display values
         display_values = display_values if isinstance(display_values, list) else [display_values]
@@ -665,7 +678,11 @@ class BaseClient(BuiltInBaseClient):
         display_column = await self.get_column_by_id(
             table_id=_other_table.id, column_id=display_column_key, refresh=False
         )
-        row_id_map = await self.get_row_id_map(table_name=_other_table.name, key_column=display_column.name)
+        row_id_map = await self.get_row_id_map(
+            table_name=_other_table.name,
+            key_column=display_column.name,
+            raise_key_not_unique_error=raise_key_not_unique_error,
+        )
 
         other_rows_ids = list()
         for display_value in display_values:
@@ -675,7 +692,11 @@ class BaseClient(BuiltInBaseClient):
                     raise LinkValueNotExists(_msg)
                 # add link
                 await self.add_row(table_name=_other_table.name, row={display_column.name: display_value})
-                row_id_map = await self.get_row_id_map(table_name=_other_table.name, key_column=display_column.name)
+                row_id_map = await self.get_row_id_map(
+                    table_name=_other_table.name,
+                    key_column=display_column.name,
+                    raise_key_not_unique_error=raise_key_not_unique_error,
+                )
             other_rows_ids.append(row_id_map[display_value])
 
         return {
@@ -686,7 +707,7 @@ class BaseClient(BuiltInBaseClient):
         }
 
     # Get Ohter Rows Ids
-    async def get_other_rows_ids(self, table_name, column_name):
+    async def get_other_rows_ids(self, table_name, column_name, raise_key_not_unique_error: bool = True):
         link = await self.get_link(table_name=table_name, column_name=column_name)
         other_table = await self.get_table_by_id(table_id=link["other_table_id"])
         for column in other_table.columns:
@@ -694,7 +715,9 @@ class BaseClient(BuiltInBaseClient):
                 break
         else:
             raise KeyError
-        return await self.get_row_id_map(table_name=other_table.name, key_column=column.name)
+        return await self.get_row_id_map(
+            table_name=other_table.name, key_column=column.name, raise_key_not_unique_error=raise_key_not_unique_error
+        )
 
     ################################################################
     # FILES & IMAGES

@@ -75,7 +75,7 @@ DTABLE_ICON_COLORS = [
 ]
 
 
-class _Model(BaseModel, extra=Extra.forbid):
+class _Model(BaseModel): # remove "extra=Extra.forbid" here
     @validator("*", pre=True)
     def empty_to_none(cls, v):
         if v == "":

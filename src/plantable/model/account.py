@@ -78,6 +78,7 @@ class BaseToken(_Model):
     group_id: int = None  # (manually added)
     group_name: str = None  # (manually added)
     base_name: str = Field(None, alias="dtable_name")  # 'employee
+    use_api_gateway: str = None
     generated_at: datetime = datetime.now()  # (manually added)
 
 

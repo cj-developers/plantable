@@ -115,10 +115,10 @@ class Deserializer:
         self.table = table
 
         # get collaborator_map
-        if collaborators:
+        if self.collaborators:
             self.collaborator_map = {
                 collaborator.email: f"{collaborator.name}({collaborator.contact_email})"
-                for collaborator in collaborators
+                for collaborator in self.collaborators
             }
         else:
             self.collaborator_map = None
@@ -193,7 +193,6 @@ class Deserializer:
                                 name=c["name"],
                                 seatable_type=c["type"],
                                 data=c["data"],
-                                collaborators=self.collaborator_map,
                             )
                         }
                     )

@@ -147,7 +147,7 @@ class View(_Model):
     private_for: str = None  # None
     is_locked: bool = None  # False
     row_height: str = None  # 'default'
-    filter_conjunction: str  # 'And'
+    filter_conjunction: str = None # 'And'
     filters: List[dict] = None  # []
     sorts: List[dict] = None  # []
     groupbys: List[dict] = None  # []

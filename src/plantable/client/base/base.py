@@ -14,7 +14,7 @@ from ...const import DT_FMT, TZ
 from ...model import BaseActivity, BaseToken, Column, Metadata, SelectOption, Table, UserInfo, View
 from ...model.column import COLUMN_DATA
 from ...serde import Deserializer, FromPython, ToPython
-from ...utils import divide_chunks, parse_str_datetime
+from ...utils import divide_chunks, parse_str_datetime, extract_table_name, extract_columns_from_select
 from ..conf import SEATABLE_URL
 from ..core import TABULATE_CONF
 from .builtin import BuiltInBaseClient
@@ -335,6 +335,37 @@ class BaseClient(BuiltInBaseClient):
         self.row_id_map[table_name].update({key_column: {r[key_column]: r["_id"] for r in rows}})
 
         return self.row_id_map[table_name][key_column]
+
+    # Query Table
+    async def query_table(self, sql: str, Deserializer: Deserializer = ToPython):
+        # read rows with sql
+        rows = await self.list_rows_with_sql(sql=sql)
+
+        # extract table_name
+        table_name = extract_table_name(sql=sql)
+        select = extract_columns_from_select(sql=sql)
+
+        # deserializer
+        if Deserializer:
+            metadata = await self.get_metadata()
+            collaborators = await self.list_collaborators()
+            deserializer = Deserializer(
+                metadata=metadata,
+                table_name=table_name,
+                base_name=self.base_name,
+                group_name=self.group_name,
+                collaborators=collaborators,
+            )
+            try:
+                rows = deserializer(*rows, select=select)
+            except Exception as ex:
+                _msg = (
+                    f"deserializer failed - group '{self.group_name}', base '{self.base_name}', table '{table_name}'"
+                )
+                logger.error(_msg)
+                raise ex
+
+        return rows
 
     async def _read_table(
         self,

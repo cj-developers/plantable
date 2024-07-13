@@ -277,6 +277,7 @@ class PythonLink(ColumnDeserializer):
             return x
         return x[0]
 
+
 class PythonLinkFormula(ColumnDeserializer):
     def __init__(
         self,
@@ -291,18 +292,20 @@ class PythonLinkFormula(ColumnDeserializer):
         )
 
         result_type = self.data["result_type"]
-        
+
         # [TODO] is_multiple 추가해서 참조하는 link가 리스트이면 리스트, 단일 값이면 단일 값을 반환하도록
         if result_type == "array":
             array_type = self.data["array_type"]
             array_data = self.data["array_data"]
             self.sub_deserializer = DESERIALIZER[array_type](name=self.name, seatable_type=array_type, data=array_data)
-        
+
         if result_type == "number":
             result_data = {}
             if self.data["formula"] == "count_links":
                 result_data.update({"enable_precision": True, "precision": 0})
-            self.sub_deserializer = DESERIALIZER[result_type](name=self.name, seatable_type=result_type, data=result_data)
+            self.sub_deserializer = DESERIALIZER[result_type](
+                name=self.name, seatable_type=result_type, data=result_data
+            )
 
     def schema(self):
         return self.sub_deserializer.schema()

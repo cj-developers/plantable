@@ -44,7 +44,7 @@ def extract_table_name(sql):
         if token.ttype is sqlparse.tokens.Keyword and token.value.upper() == "FROM":
             from_seen = True
     else:
-        _msg = "no table name found '{sql}'!"
+        _msg = f"no table name found '{sql}'!"
         raise NoTableName(_msg)
 
 

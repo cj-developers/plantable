@@ -1,3 +1,7 @@
+################################################################
+# [TODO] SeaTable 버전 5에 맞추어 다시 개발 예정
+################################################################
+
 import logging
 from abc import abstractmethod
 from datetime import datetime
@@ -95,7 +99,7 @@ class Deserializer:
         table_name: str,
         base_name: str = None,
         group_name: str = None,
-        table_name_sep: str = "__",
+        table_name_sep: str = "____",
         collaborators: List[User] = None,
     ):
         self.metadata = metadata

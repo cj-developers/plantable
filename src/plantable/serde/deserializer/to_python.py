@@ -64,7 +64,7 @@ class PythonNumber(ColumnDeserializer):
         super().__init__(
             name=name, seatable_type=seatable_type, data=data, metadata=metadata, collaborator_map=collaborator_map
         )
-        if self.data.get("enable_precision"):
+        if self.data.get("enable_precision") and (self.data.get("precision") == 0):
             self.sub_deserializer = _PythonInteger(name=self.name, seatable_type=self.seatable_type, data=self.data)
         else:
             self.sub_deserializer = _PythonFloat(name=self.name, seatable_type=self.seatable_type, data=self.data)
@@ -277,7 +277,6 @@ class PythonLink(ColumnDeserializer):
             return x
         return x[0]
 
-
 class PythonLinkFormula(ColumnDeserializer):
     def __init__(
         self,
@@ -291,21 +290,27 @@ class PythonLinkFormula(ColumnDeserializer):
             name=name, seatable_type=seatable_type, data=data, metadata=metadata, collaborator_map=collaborator_map
         )
 
-        if "array_type" in data:
+        result_type = self.data["result_type"]
+        
+        # [TODO] is_multiple 추가해서 참조하는 link가 리스트이면 리스트, 단일 값이면 단일 값을 반환하도록
+        if result_type == "array":
             array_type = self.data["array_type"]
             array_data = self.data["array_data"]
-        else:
-            column = self.get_column_by_id(table_id=data["table_id"], column_id=data["display_column_key"])
-            array_type = column.type
-            array_data = column.data
-
-        self.sub_deserializer = DESERIALIZER[array_type](name=self.name, seatable_type=array_type, data=array_data)
+            self.sub_deserializer = DESERIALIZER[array_type](name=self.name, seatable_type=array_type, data=array_data)
+        
+        if result_type == "number":
+            result_data = {}
+            if self.data["formula"] == "count_links":
+                result_data.update({"enable_precision": True, "precision": 0})
+            self.sub_deserializer = DESERIALIZER[result_type](name=self.name, seatable_type=result_type, data=result_data)
 
     def schema(self):
         return self.sub_deserializer.schema()
 
     def convert(self, x):
-        return [self.sub_deserializer(_x) for _x in x]
+        if isinstance(x, list):
+            return [self.sub_deserializer(_x) for _x in x]
+        return self.sub_deserializer(x)
 
 
 DESERIALIZER.update(

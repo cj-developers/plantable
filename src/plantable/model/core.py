@@ -207,7 +207,7 @@ class User(_Model):
     email: str  # '2926d3fa3a364558bac8a550811dbe0e@auth.local'
     name: str  # 'admin'
     name_pinyin: str = None
-    contact_email: str  # 'woojin.cho@gmail.com'
+    contact_email: str = None # 'woojin.cho@gmail.com'
     login_id: str = None  # ''
     phone: str = None
     avatar_url: str = None

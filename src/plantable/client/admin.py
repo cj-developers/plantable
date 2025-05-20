@@ -87,8 +87,16 @@ class AdminClient(AccountClient):
         raise NotImplementedError
 
     # Delete User
-    async def delete_user(self):
-        raise NotImplementedError
+    async def delete_user(self, user_id):
+        METHOD = "DELETE"
+        URL = f"/api/v2.1/admin/users/{user_id}"
+        ITEM = "success"
+
+        async with self.session_maker(token=self.account_token) as session:
+            response = await self.request(session=session, method=METHOD, url=URL)
+            results = response[ITEM]
+
+        return results
 
     # List Admin Users
     async def list_admin_users(self, model: BaseModel = Admin, **params):
